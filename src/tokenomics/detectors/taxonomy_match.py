@@ -25,11 +25,14 @@ class TaxonomyMatchDetector:
     analysis_no = 0  # per-finding analysis_no comes from the pattern's category
 
     def run(self, corpus: Corpus, cfg: Config) -> list[Finding]:
-        catalog = load_catalog()
+        catalog = load_catalog(project_path=corpus.project_path)
         feats = compute_features(corpus, cfg)
         ns = {**feats.as_namespace(), "th": cfg.thresholds}
         out: list[Finding] = []
         for pattern in catalog.declarative():
+            # Mined candidates are correlational until promoted — opt-in only.
+            if pattern.maturity == "candidate" and not cfg.match_candidate_patterns:
+                continue
             code = pattern.compiled()
             if code is None or not evaluate(code, ns):
                 continue

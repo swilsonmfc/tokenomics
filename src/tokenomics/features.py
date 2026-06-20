@@ -45,6 +45,8 @@ class TrajectoryFeatures:
     search_ratio: float = 0.0
     repeated_search_max: int = 0
     total_tokens: int = 0
+    output_tokens: int = 0
+    weight: float = 0.0
     premium_token_share: float = 0.0
     top_model: str | None = None
     trivial_premium_turns: int = 0
@@ -73,11 +75,23 @@ class TrajectoryFeatures:
 
 
 def compute_features(corpus: Corpus, cfg: Config) -> TrajectoryFeatures:
+    """Corpus-level feature vector (all sessions folded together)."""
+    return _compute(corpus.sessions, corpus.static, cfg)
+
+
+def compute_session_features(session, static, cfg: Config) -> TrajectoryFeatures:
+    """Per-session feature vector — the unit the empirical miner contrasts."""
+    return _compute([session], static, cfg)
+
+
+def _compute(sessions, static, cfg: Config) -> TrajectoryFeatures:
     th = cfg.thresholds
     total_turns = total_calls = search_calls = 0
     tokens_by_model: Counter[str] = Counter()
     trivial_premium = thinking_trivial = 0
     cache_read = cache_create = bust_turns = 0
+    output_tokens = 0
+    weight = 0.0
     search_patterns: Counter[str] = Counter()
     reads: Counter[str] = Counter()
     edited: set[str] = set()
@@ -86,12 +100,15 @@ def compute_features(corpus: Corpus, cfg: Config) -> TrajectoryFeatures:
     def visit(turn, default_model):
         nonlocal total_turns, total_calls, search_calls, trivial_premium
         nonlocal thinking_trivial, cache_read, cache_create, bust_turns, web_requests
+        nonlocal output_tokens, weight
         u = turn.usage
         if u is None or u.total_tokens == 0:
             return
         total_turns += 1
         model = pricing.normalize_model(turn.model or default_model) or "unknown"
         tokens_by_model[model] += u.total_tokens
+        output_tokens += u.output
+        weight += pricing.usage_weight(u, turn.model or default_model)
         tier = MODEL_TIER.get(model, 0)
         is_premium = tier >= _PREMIUM_TIER
         is_trivial = u.output < th.trivial_output_tokens and not turn.tool_calls
@@ -118,7 +135,7 @@ def compute_features(corpus: Corpus, cfg: Config) -> TrajectoryFeatures:
                 edited.add(fp)
 
     subagent_count = premium_subagent_runs = 0
-    for session in corpus.sessions:
+    for session in sessions:
         for turn in session.turns:
             visit(turn, None)
             spawns = sum(1 for c in turn.tool_calls if c.spawned_subagent)
@@ -142,17 +159,16 @@ def compute_features(corpus: Corpus, cfg: Config) -> TrajectoryFeatures:
     denom = cache_read + cache_create
     cache_eff = cache_read / denom if denom else 1.0
 
-    peaks = [session_context_peak_avg(s) for s in corpus.sessions]
+    peaks = [session_context_peak_avg(s) for s in sessions]
     peaks = [(p, a) for p, a in peaks if p]
     ctx_peak = max((p for p, _ in peaks), default=0)
     ctx_avg = (sum(a for _, a in peaks) / len(peaks)) if peaks else 0.0
 
     reread_files = sum(1 for fp, c in reads.items() if c >= th.reread and fp not in edited)
 
-    static = corpus.static
     used_servers = {
         c.mcp_server
-        for s in corpus.sessions for t in s.turns for c in t.tool_calls
+        for s in sessions for t in s.turns for c in t.tool_calls
         if c.is_mcp and c.mcp_server
     }
     static_servers = {s.get("name") for s in static.mcp_servers if s.get("name")}
@@ -171,6 +187,8 @@ def compute_features(corpus: Corpus, cfg: Config) -> TrajectoryFeatures:
         search_ratio=round(search_calls / total_calls, 4) if total_calls else 0.0,
         repeated_search_max=max(search_patterns.values(), default=0),
         total_tokens=total_tokens,
+        output_tokens=output_tokens,
+        weight=round(weight, 4),
         premium_token_share=round(premium_share, 4),
         top_model=top_model,
         trivial_premium_turns=trivial_premium,

@@ -118,6 +118,11 @@ class Thresholds:
     # Taxonomy declarative patterns (matched against the trajectory feature vector)
     thinking_trivial: int = 3        # premium turns that think hard for a trivial answer
     premium_subagent_runs: int = 2   # subagent runs left on a top-tier model
+    # Empirical miner (Phase B): contrast expensive vs cheap sessions
+    mine_min_sessions: int = 8       # need this many sessions before mining at all
+    mine_min_cohort: int = 3         # min sessions in each (expensive/cheap) cohort
+    mine_min_session_output: int = 200  # ignore sessions with less output (noisy ratio)
+    mine_min_separation: float = 0.2    # median gap as a fraction of the signal's range
 
 
 @dataclass(frozen=True)
@@ -126,6 +131,9 @@ class Config:
     # Optional spend budget per session (tokens) used by capture-mode flagging.
     session_token_budget: int | None = None
     capture_enabled: bool = True
+    # Fire mined `candidate` patterns in the matcher too (off by default: candidates
+    # are correlational until promoted to a curated/empirical record).
+    match_candidate_patterns: bool = False
 
 
 def load_config(project_path: str | Path) -> Config:
@@ -147,4 +155,6 @@ def load_config(project_path: str | Path) -> Config:
         cfg = replace(cfg, session_token_budget=data["session_token_budget"])
     if "capture_enabled" in data:
         cfg = replace(cfg, capture_enabled=bool(data["capture_enabled"]))
+    if "match_candidate_patterns" in data:
+        cfg = replace(cfg, match_candidate_patterns=bool(data["match_candidate_patterns"]))
     return cfg

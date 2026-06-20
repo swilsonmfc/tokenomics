@@ -37,7 +37,7 @@ def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
     findings.sort(key=lambda f: (-int(f.severity), -(f.est_savings_weight or 0)))
 
     features = compute_features(corpus, cfg)
-    catalog = load_catalog()
+    catalog = load_catalog(project_path=project_path)
     matched = sorted({f.pattern_id for f in findings if f.pattern_id})
 
     ctx_summary = []

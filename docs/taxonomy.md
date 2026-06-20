@@ -54,11 +54,40 @@ provenance / reviewed                          # where it came from, when last c
 ## Maturity tiers (trust gate)
 
 `curated` (authoritative — Anthropic/Claude Code docs, the `claude-api` skill),
-`empirical` (corpus-mined and confirmed), `candidate` (mined, unconfirmed). The
-corpus miner that emits `candidate` records — contrasting high- vs low-efficiency
-sessions over the feature vector — is the next phase; the schema and the feature
-substrate are already in place for it. Every pattern carries `provenance`/`reviewed`
-so curated knowledge can be re-checked as models and pricing change.
+`empirical` (corpus-mined and confirmed), `candidate` (mined, unconfirmed). Every
+pattern carries `provenance`/`reviewed` so curated knowledge can be re-checked as
+models and pricing change.
+
+## Empirical mining (`miner.py`, `tokenomics mine`)
+
+The miner *harvests* candidate patterns from the corpus instead of hand-coding them:
+
+1. Score each session by **cost intensity** — relative weight per 1k output tokens
+   (works for unpriced models; higher = worse). Sessions with too little output to
+   score are dropped.
+2. Split the corpus into an **expensive** (top-quartile) and **cheap** (bottom-quartile)
+   cohort.
+3. For each behavioural signal in `MINEABLE`, test whether its cohort medians separate
+   by ≥ `mine_min_separation` of the signal's observed range, in the worsening
+   direction. A signal that does becomes a `candidate` `Pattern` with a data-derived
+   threshold (the midpoint of the two medians).
+
+Output: `.tokenomics/mined.json`, `.tokenomics/mined-report.md` (candidate table +
+per-session benchmark), and `.tokenomics/taxonomy/mined.toml` (the candidate records,
+in catalog format). `load_catalog(project_path=…)` picks that file up, so candidates
+ride along on later scans — but the matcher **ignores `candidate` patterns unless
+`match_candidate_patterns = true`** (they're correlational until promoted). Promote by
+moving a record into a curated catalog file and changing its `maturity`.
+
+It is deterministic and stdlib-only (no ML); output is correlational, so confounders
+(a session may be expensive because it was *long*, not *badly routed*) are why the
+trust gate exists. Run `tokenomics mine --all` to pool sessions across projects — more
+data, sharper cohorts. Mining needs ≥ `mine_min_sessions` scorable sessions.
+
+> Matching caveat: declarative rules (curated and candidate) are evaluated against the
+> **corpus-level** feature vector, while mined thresholds are derived from the
+> **per-session** distribution. Opt-in candidate matching is therefore a coarse
+> approximation; the mined report (per-session benchmark) is the precise view.
 
 ## Adding a pattern
 

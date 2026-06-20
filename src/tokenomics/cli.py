@@ -1,8 +1,9 @@
-"""tokenomics CLI: scan | report | capture | watch | reconcile.
+"""tokenomics CLI: scan | report | mine | capture | watch | reconcile.
 
 Commands invoke deterministic analysis over Claude Code session logs and write a
 ``.tokenomics/`` folder into the analyzed project. ``reconcile`` is a P1 gate
-helper that proves subagent tokens aren't double-counted.
+helper that proves subagent tokens aren't double-counted. ``mine`` is the
+empirical pass that harvests candidate patterns from the corpus.
 """
 
 from __future__ import annotations
@@ -10,6 +11,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from pathlib import Path
 
 from . import __version__
 
@@ -49,6 +51,46 @@ def cmd_watch(args: argparse.Namespace) -> int:
 
     set_enabled(args.project, args.state == "on")
     print(f"tokenomics capture {'enabled' if args.state == 'on' else 'disabled'}")
+    return 0
+
+
+def cmd_mine(args: argparse.Namespace) -> int:
+    import json
+    from datetime import UTC, datetime
+
+    from .assemble import assemble_corpus
+    from .config import OUTPUT_DIRNAME, load_config
+    from .miner import mine
+    from .report.mine_render import render_mine_markdown
+    from .static_analysis import collect_static
+    from .taxonomy import PROJECT_CATALOG_SUBDIR, dump_patterns_toml
+
+    cfg = load_config(args.project)
+    static = collect_static(args.project)
+    corpus = assemble_corpus(args.project, static, scan_all=args.all)
+    today = datetime.now(UTC).date().isoformat()
+    report = mine(corpus, cfg, today=today)
+
+    out_dir = Path(args.project) / OUTPUT_DIRNAME
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "mined.json").write_text(json.dumps(report.to_dict(), indent=2))
+    md = render_mine_markdown(report.to_dict(), corpus.project_path,
+                              datetime.now(UTC).isoformat())
+    (out_dir / "mined-report.md").write_text(md)
+
+    patterns = report.patterns()
+    if patterns:
+        tax_dir = Path(args.project) / PROJECT_CATALOG_SUBDIR
+        tax_dir.mkdir(parents=True, exist_ok=True)
+        header = (f"Mined candidate patterns ({today}). Correlational — review and "
+                  "promote into a curated catalog file before trusting them.")
+        (tax_dir / "mined.toml").write_text(dump_patterns_toml(patterns, header))
+
+    if not report.mined:
+        print(f"tokenomics mine: {report.reason}")
+    else:
+        print(f"tokenomics mine: {len(patterns)} candidate pattern(s) from "
+              f"{report.included_count} sessions → {out_dir / 'mined-report.md'}")
     return 0
 
 
@@ -93,6 +135,12 @@ def build_parser() -> argparse.ArgumentParser:
     rp = sub.add_parser("report", help="re-render report.md from cached aggregates.json")
     rp.add_argument("--project", default=_default_project())
     rp.set_defaults(func=cmd_report)
+
+    mp = sub.add_parser("mine", help="harvest candidate cost patterns from the corpus")
+    mp.add_argument("--project", default=_default_project())
+    mp.add_argument("--all", action="store_true",
+                    help="pool sessions across all projects (recommended — more data)")
+    mp.set_defaults(func=cmd_mine)
 
     cp = sub.add_parser("capture", help="capture-mode hook entrypoint (reads event JSON on stdin)")
     cp.add_argument("event", choices=["session-start", "prompt-submit", "post-tool", "stop"])

@@ -9,9 +9,10 @@ LLM pass for semantic notes only.
 
 ```bash
 uv sync --extra dev                                   # set up env
-uv run pytest                                         # 54 tests
+uv run pytest                                         # 61 tests
 uv run ruff check src/ tests/                         # lint
 uv run python -m tokenomics.cli scan --project <path> # run a scan
+uv run python -m tokenomics.cli mine --project <path> --all  # harvest candidate patterns
 uv run python -m tokenomics.cli reconcile --project <path>  # P1 token-accounting gate
 ```
 
@@ -22,7 +23,8 @@ uv run python -m tokenomics.cli reconcile --project <path>  # P1 token-accountin
 - `src/tokenomics/detectors/` — the 7 analyses + the taxonomy matcher, registered in
   `__init__.py REGISTRY`. See `docs/detectors.md`.
 - `src/tokenomics/features.py` + `taxonomy/` — shared trajectory feature vector + the
-  declarative best-practice catalog matched against it. See `docs/taxonomy.md`.
+  declarative best-practice catalog matched against it. `miner.py` harvests `candidate`
+  patterns from the corpus (the `mine` command). See `docs/taxonomy.md`.
 - `src/tokenomics/static_analysis/` — parses plugins/skills/agents/hooks/MCP/CLAUDE.md.
 - `src/tokenomics/capture/` — real-time hook (reads live transcript incrementally).
 - `src/tokenomics/enrich/deep.py` — optional `--deep` pass (additive only).
