@@ -64,6 +64,7 @@ class CacheBustingDetector:
                     "tool set, keep volatile content (timestamps, IDs) after the last "
                     "cache breakpoint, and serialize tool lists deterministically."
                 ),
+                pattern_id="cache.low-efficiency",
             ))
         elif bust_turns:
             findings.append(Finding(
@@ -73,6 +74,7 @@ class CacheBustingDetector:
                           "sample_busts": bust_turns[:5]},
                 est_savings_tokens=sum(b["cache_creation"] for b in bust_turns),
                 recommendation="Investigate the prefix change at the flagged turns.",
+                pattern_id="cache.low-efficiency",
             ))
         return findings
 

@@ -39,6 +39,7 @@ class Finding:
     recommendation: str = ""
     deep_enrichable: bool = False
     deep_note: str | None = None  # filled by enrich/deep.py
+    pattern_id: str | None = None  # taxonomy pattern this finding instantiates
 
     def to_dict(self) -> dict:
         d = asdict(self)

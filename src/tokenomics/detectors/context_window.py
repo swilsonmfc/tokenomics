@@ -58,6 +58,7 @@ class ContextWindowDetector:
                     "disable MCP servers you don't call, and compact long sessions. "
                     "See the context-window-evaluator skill."
                 ),
+                pattern_id="context.large-window",
                 deep_enrichable=True,
             ))
 
@@ -71,6 +72,7 @@ class ContextWindowDetector:
                 evidence={"unused_mcp_servers": unused},
                 recommendation="Disable unused MCP servers — their tool schemas sit "
                                "in every request's context for no benefit.",
+                pattern_id="context.unused-mcp",
             ))
         return findings
 

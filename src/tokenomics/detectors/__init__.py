@@ -12,6 +12,7 @@ from .review_agents import DETECTOR as review_agents
 from .routing import DETECTOR as routing
 from .search_efficiency import DETECTOR as search_efficiency
 from .second_tier import DETECTOR as second_tier
+from .taxonomy_match import DETECTOR as taxonomy_match
 
 # Ordered by typical cost-impact (highest, clearest savings first).
 REGISTRY: list[Detector] = [
@@ -22,6 +23,7 @@ REGISTRY: list[Detector] = [
     review_agents,
     claudemd_bloat,
     second_tier,
+    taxonomy_match,
 ]
 
 

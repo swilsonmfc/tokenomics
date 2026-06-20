@@ -43,3 +43,11 @@ Tier classification for routing/review uses `config.MODEL_TIER` (haiku 1 → fab
 
 `second_tier.py` shows the sub-check pattern: a list of small functions each returning an
 optional `Finding`, so new second-tier checks slot in without touching the registry.
+
+## The taxonomy matcher (`taxonomy_match.py`)
+
+An eighth registered detector evaluates the **declarative** patterns in the best-practice
+catalog against the shared trajectory feature vector — so new coverage can be added as a
+catalog entry instead of code. Its findings carry a `pattern_id` and take their
+`analysis_no` from the pattern's category. The historical seven also stamp `pattern_id`
+to cross-reference their catalog records. See `docs/taxonomy.md`.

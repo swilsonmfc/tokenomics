@@ -9,7 +9,7 @@ LLM pass for semantic notes only.
 
 ```bash
 uv sync --extra dev                                   # set up env
-uv run pytest                                         # 40 tests
+uv run pytest                                         # 54 tests
 uv run ruff check src/ tests/                         # lint
 uv run python -m tokenomics.cli scan --project <path> # run a scan
 uv run python -m tokenomics.cli reconcile --project <path>  # P1 token-accounting gate
@@ -19,8 +19,10 @@ uv run python -m tokenomics.cli reconcile --project <path>  # P1 token-accountin
 
 - `src/tokenomics/` — core pipeline: `logpath → logparse → assemble → model → metrics
   → detectors → report`. See `docs/architecture.md`.
-- `src/tokenomics/detectors/` — the 7 analyses, registered in `__init__.py REGISTRY`.
-  See `docs/detectors.md`.
+- `src/tokenomics/detectors/` — the 7 analyses + the taxonomy matcher, registered in
+  `__init__.py REGISTRY`. See `docs/detectors.md`.
+- `src/tokenomics/features.py` + `taxonomy/` — shared trajectory feature vector + the
+  declarative best-practice catalog matched against it. See `docs/taxonomy.md`.
 - `src/tokenomics/static_analysis/` — parses plugins/skills/agents/hooks/MCP/CLAUDE.md.
 - `src/tokenomics/capture/` — real-time hook (reads live transcript incrementally).
 - `src/tokenomics/enrich/deep.py` — optional `--deep` pass (additive only).
@@ -42,5 +44,6 @@ uv run python -m tokenomics.cli reconcile --project <path>  # P1 token-accountin
 - `docs/architecture.md` — pipeline, data model, token accounting
 - `docs/log-format.md` — the Claude Code session JSONL schema (signal source)
 - `docs/detectors.md` — the 7 detectors + how to add one
+- `docs/taxonomy.md` — feature vector + declarative best-practice catalog
 - `docs/plugin.md` — commands, capture hook, advisory skills
 - `docs/development.md` — workflow, testing, conventions

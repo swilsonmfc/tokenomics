@@ -73,6 +73,7 @@ class SearchEfficiencyDetector:
                     "No code-indexing tool detected. Adding LSP/AST/RepoMap navigation "
                     "cuts repeated full-text scans. See the code-indexing-advisor skill."
                 ),
+                pattern_id="search.grep-heavy",
                 deep_enrichable=True,
             ))
         if repeated and not search_heavy:
@@ -82,6 +83,7 @@ class SearchEfficiencyDetector:
                 evidence={"repeated_patterns": repeated},
                 recommendation="Cache or narrow these repeated searches; an index avoids "
                                "re-scanning the same files.",
+                pattern_id="search.grep-heavy",
             ))
         return findings
 

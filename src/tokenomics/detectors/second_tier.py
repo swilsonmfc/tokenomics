@@ -39,6 +39,7 @@ def _rereads(corpus: Corpus, cfg: Config) -> Finding | None:
         est_savings_tokens=wasted, est_savings_weight=wasted / 1_000_000 * 5,
         recommendation="Re-reading an unchanged file re-pays its tokens. Read once and "
                        "reuse, or narrow with offset/limit.",
+        pattern_id="secondtier.file-reread",
     )
 
 
@@ -61,6 +62,7 @@ def _tool_bloat(corpus: Corpus, cfg: Config) -> Finding | None:
         est_savings_tokens=wasted, est_savings_weight=wasted / 1_000_000 * 5,
         recommendation="Large tool outputs re-enter context on every following turn. "
                        "Narrow reads (head/limit/grep), or summarize before feeding back.",
+        pattern_id="secondtier.toolresult-bloat",
     )
 
 
@@ -81,6 +83,7 @@ def _fanout(corpus: Corpus, cfg: Config) -> Finding | None:
         evidence={"turns": dict(list(big.items())[:8])},
         recommendation="Very wide subagent fan-out multiplies fixed per-agent overhead. "
                        "Batch work or reduce parallelism where agents aren't independent.",
+        pattern_id="secondtier.wide-fanout",
     )
 
 
@@ -98,6 +101,7 @@ def _server_tools(corpus: Corpus, cfg: Config) -> Finding | None:
         evidence={"web_search_requests": searches, "web_fetch_requests": fetches},
         recommendation="Heavy server-tool use adds billed requests and context. Confirm "
                        "each search/fetch is needed; cache results where repeated.",
+        pattern_id="secondtier.server-tool-waste",
     )
 
 

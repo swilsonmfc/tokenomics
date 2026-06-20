@@ -14,8 +14,10 @@ from .. import AGGREGATES_SCHEMA_VERSION
 from ..assemble import assemble_corpus
 from ..config import OUTPUT_DIRNAME, load_config
 from ..detectors import run_all
+from ..features import compute_features
 from ..metrics import compute_metrics, reconcile_subagents, session_context_peak_avg
 from ..static_analysis import collect_static
+from ..taxonomy import load_catalog
 from .render import render_markdown
 
 
@@ -33,6 +35,10 @@ def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
     findings = run_all(corpus, cfg)
     recs = reconcile_subagents(corpus)
     findings.sort(key=lambda f: (-int(f.severity), -(f.est_savings_weight or 0)))
+
+    features = compute_features(corpus, cfg)
+    catalog = load_catalog()
+    matched = sorted({f.pattern_id for f in findings if f.pattern_id})
 
     ctx_summary = []
     for s in corpus.sessions:
@@ -84,6 +90,12 @@ def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
             "claude_md": static.claude_md,
         },
         "findings": [f.to_dict() for f in findings],
+        "trajectory_features": features.to_dict(),
+        "taxonomy": {
+            "catalog_size": len(catalog.patterns),
+            "by_maturity": catalog.by_maturity(),
+            "matched_patterns": matched,
+        },
         "pricing_basis": "claude-api skill (cached 2026-06); cache read 0.1x, write 1.25x/2x",
         "unpriced_models": metrics.unpriced_models,
     }

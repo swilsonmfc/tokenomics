@@ -1,0 +1,202 @@
+# Core cost taxonomy — the curated knowledge source.
+#
+# Each [[pattern]] is one cost pattern. `engine = "detector"` records are metadata
+# that cross-reference a bespoke Python detector (it stamps Finding.pattern_id).
+# `engine = "declarative"` records carry a `rule` over the trajectory feature vector
+# (see features.py) and are evaluated by detectors/taxonomy_match.py — new coverage
+# without new code. Keep this file the single place patterns are described.
+
+# ── Detector-backed patterns (the historical seven) ──────────────────────────
+
+[[pattern]]
+id = "search.grep-heavy"
+category = "search"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "detector"
+detector_id = "search_efficiency"
+signals = ["search_ratio", "search_calls"]
+remediation_skill = "code-indexing-advisor"
+maturity = "curated"
+provenance = "Claude Code best practices + claude-api skill"
+reviewed = "2026-06"
+title = "Search-heavy trajectory (raw grep over structured navigation)"
+recommendation = "Add LSP/AST/RepoMap navigation; prefer symbol lookup over full-text scans."
+
+[[pattern]]
+id = "routing.premium-everywhere"
+category = "routing"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "detector"
+detector_id = "routing"
+signals = ["premium_token_share", "trivial_premium_turns"]
+remediation_skill = "dynamic-router-advisor"
+maturity = "curated"
+provenance = "Claude Code best practices + claude-api skill"
+reviewed = "2026-06"
+title = "Premium model for trivial work"
+recommendation = "Route trivial/mechanical turns to a cheaper tier; reserve premium for hard reasoning."
+
+[[pattern]]
+id = "context.large-window"
+category = "context"
+polarity = "anti_pattern"
+scope = "session"
+engine = "detector"
+detector_id = "context_window"
+signals = ["ctx_peak", "ctx_avg"]
+remediation_skill = "context-window-evaluator"
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "Large standing context window"
+recommendation = "Offload to subagents, trim CLAUDE.md, disable unused MCP, compact long sessions."
+
+[[pattern]]
+id = "context.unused-mcp"
+category = "context"
+polarity = "anti_pattern"
+scope = "static"
+engine = "detector"
+detector_id = "context_window"
+signals = ["unused_mcp_count"]
+remediation_skill = "context-window-evaluator"
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "MCP server loaded but never called"
+recommendation = "Disable unused MCP servers — their tool schemas sit in every request for no benefit."
+
+[[pattern]]
+id = "claudemd.bloat"
+category = "claudemd"
+polarity = "anti_pattern"
+scope = "static"
+engine = "detector"
+detector_id = "claudemd_bloat"
+signals = ["claudemd_tokens"]
+remediation_skill = "claude-md-linter"
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "CLAUDE.md bloat (re-sent every turn)"
+recommendation = "Dedupe and tighten CLAUDE.md to imperative rules; it is cache-written every turn."
+
+[[pattern]]
+id = "cache.low-efficiency"
+category = "cache"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "detector"
+detector_id = "cache_busting"
+signals = ["cache_efficiency", "bust_turns"]
+maturity = "curated"
+provenance = "claude-api skill (prompt caching)"
+reviewed = "2026-06"
+title = "Low cache efficiency (prefix keeps changing)"
+recommendation = "Avoid mid-session prefix edits; keep volatile content after the last cache breakpoint."
+
+[[pattern]]
+id = "review.redundant-or-overmodeled"
+category = "review"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "detector"
+detector_id = "review_agents"
+signals = ["premium_subagent_runs"]
+remediation_skill = "dynamic-router-advisor"
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "Redundant or over-modeled review passes"
+recommendation = "Consolidate duplicate reviews; run them on a cheaper model unless premium is needed."
+
+[[pattern]]
+id = "secondtier.file-reread"
+category = "secondtier"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "detector"
+detector_id = "second_tier.rereads"
+signals = ["reread_files"]
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "Unchanged file re-read repeatedly"
+recommendation = "Read once and reuse, or narrow with offset/limit."
+
+[[pattern]]
+id = "secondtier.toolresult-bloat"
+category = "secondtier"
+polarity = "anti_pattern"
+scope = "turn"
+engine = "detector"
+detector_id = "second_tier.tool_bloat"
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "Oversized tool result re-entering context"
+recommendation = "Narrow reads (head/limit/grep) or summarize large outputs before feeding them back."
+
+[[pattern]]
+id = "secondtier.wide-fanout"
+category = "secondtier"
+polarity = "anti_pattern"
+scope = "turn"
+engine = "detector"
+detector_id = "second_tier.fanout"
+signals = ["max_fanout"]
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "Very wide subagent fan-out"
+recommendation = "Batch work or reduce parallelism where agents are not genuinely independent."
+
+[[pattern]]
+id = "secondtier.server-tool-waste"
+category = "secondtier"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "detector"
+detector_id = "second_tier.server_tools"
+signals = ["web_requests"]
+maturity = "curated"
+provenance = "Claude Code best practices"
+reviewed = "2026-06"
+title = "Heavy server-tool (web search/fetch) use"
+recommendation = "Confirm each search/fetch is needed; cache results where repeated."
+
+# ── Declarative patterns (rule over the feature vector; no bespoke code) ──────
+
+[[pattern]]
+id = "routing.thinking-on-trivial"
+category = "routing"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "declarative"
+rule = "thinking_trivial_turns >= th.thinking_trivial"
+signals = ["thinking_trivial_turns"]
+severity = "med"
+remediation_skill = "dynamic-router-advisor"
+maturity = "curated"
+provenance = "claude-api skill (extended thinking); fills the second_tier docstring gap"
+reviewed = "2026-06"
+title = "Extended thinking spent on trivial turns"
+recommendation = "Lower the thinking/effort tier for routine turns; raise it only for intelligence-sensitive work."
+
+[[pattern]]
+id = "routing.premium-subagents"
+category = "routing"
+polarity = "best_practice"
+scope = "trajectory"
+engine = "declarative"
+rule = "premium_subagent_runs >= th.premium_subagent_runs"
+signals = ["premium_subagent_runs", "subagent_count"]
+severity = "low"
+remediation_skill = "dynamic-router-advisor"
+maturity = "curated"
+provenance = "Claude Code best practices (cheap-subagent pins)"
+reviewed = "2026-06"
+title = "Subagents running on a premium model"
+recommendation = "Pin mechanical/search subagents to a cheap model via agent `model:` frontmatter; switching models mid-thread also preserves the main prompt cache."

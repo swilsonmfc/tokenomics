@@ -115,6 +115,9 @@ class Thresholds:
     reread: int = 3
     fanout: int = 6
     tool_result_bloat_chars: int = 50_000
+    # Taxonomy declarative patterns (matched against the trajectory feature vector)
+    thinking_trivial: int = 3        # premium turns that think hard for a trivial answer
+    premium_subagent_runs: int = 2   # subagent runs left on a top-tier model
 
 
 @dataclass(frozen=True)

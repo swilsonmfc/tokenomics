@@ -120,6 +120,10 @@ def render_markdown(agg: dict) -> str:
                          + (f", ${f['est_savings_usd']:,.2f}" if f.get("est_savings_usd") else ""))
             if f.get("recommendation"):
                 L.append(f"  - {f['recommendation']}")
+            if f.get("pattern_id"):
+                mat = f.get("evidence", {}).get("maturity")
+                tag = f" ({mat})" if mat else ""
+                L.append(f"  - 🧬 taxonomy: `{f['pattern_id']}`{tag}")
             if f.get("deep_note"):
                 L.append(f"  - 🔎 _{f['deep_note']}_")
             L.append("")
@@ -156,7 +160,21 @@ def render_markdown(agg: dict) -> str:
         L.append("- CLAUDE.md: none found")
     L.append("")
 
-    # 6. Methodology
+    # 6. Taxonomy coverage
+    tax = agg.get("taxonomy")
+    if tax:
+        L.append("## Taxonomy coverage")
+        L.append("")
+        mat = ", ".join(f"{k} {v}" for k, v in tax.get("by_maturity", {}).items())
+        L.append(f"- Catalog: {tax.get('catalog_size', 0)} patterns ({mat or 'n/a'})")
+        matched = tax.get("matched_patterns", [])
+        if matched:
+            L.append("- Matched this scan: " + ", ".join(f"`{m}`" for m in matched))
+        else:
+            L.append("- Matched this scan: none")
+        L.append("")
+
+    # 7. Methodology
     L.append("## Methodology & caveats")
     L.append("")
     L.append("- Token sums use top-level `message.usage` only (never `iterations[]`).")

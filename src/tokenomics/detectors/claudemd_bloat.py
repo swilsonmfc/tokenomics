@@ -52,6 +52,7 @@ class ClaudeMdBloatDetector:
                         "turn, so trimming compounds. See the claude-md-linter skill. "
                         "Editing it mid-session also busts the cache (D5)."
                     ),
+                    pattern_id="claudemd.bloat",
                     deep_enrichable=True,
                 ))
         return findings

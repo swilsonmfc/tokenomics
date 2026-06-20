@@ -74,6 +74,7 @@ class RoutingDetector:
                     "agent `model:` frontmatter. Reserve the premium model for "
                     "hard reasoning. See the dynamic-router-advisor skill."
                 ),
+                pattern_id="routing.premium-everywhere",
                 deep_enrichable=True,
             ))
 
@@ -88,6 +89,7 @@ class RoutingDetector:
                               "total_turns": total_turns},
                     est_savings_tokens=trivial_premium_tokens,
                     recommendation="Downshift trivial turns to a cheaper model tier.",
+                    pattern_id="routing.premium-everywhere",
                     deep_enrichable=True,
                 ))
         return findings

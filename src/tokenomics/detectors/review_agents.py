@@ -62,6 +62,7 @@ class ReviewAgentsDetector:
                 "model where a premium one isn't needed; fan out only when reviews "
                 "are genuinely independent."
             ),
+            pattern_id="review.redundant-or-overmodeled",
             deep_enrichable=True,
         ))
         return findings
