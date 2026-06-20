@@ -1,0 +1,7 @@
+{
+  "name": "tokenomics",
+  "description": "Diagnoses high token costs in Claude Code usage, discovers savings, and produces a recommendations report.",
+  "version": "0.1.0",
+  "author": { "name": "Steve Wilson" },
+  "keywords": ["tokens", "cost", "efficiency", "observability", "claude-code"]
+}

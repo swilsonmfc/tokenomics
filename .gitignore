@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# uv / venv
+.venv/
+
+# tooling
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# tokenomics output (when this repo is itself analyzed)
+.tokenomics/
+
+# OS
+.DS_Store
