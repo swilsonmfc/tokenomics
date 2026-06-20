@@ -13,7 +13,14 @@ from datetime import datetime
 from pathlib import Path
 
 from .logparse import iter_records, load_meta
-from .logpath import SessionFiles, corpus_byte_size, discover_sessions
+from .logpath import (
+    SessionFiles,
+    all_project_log_dirs,
+    corpus_byte_size,
+    denamespace,
+    discover_sessions,
+    discover_sessions_in_dir,
+)
 from .model import (
     Corpus,
     Session,
@@ -282,15 +289,42 @@ def assemble_session(sf: SessionFiles, project_path: str) -> Session:
     return session
 
 
-def assemble_corpus(project_path: str, static: StaticEnv | None = None) -> Corpus:
-    sessions_files = discover_sessions(project_path)
-    sessions = [assemble_session(sf, project_path) for sf in sessions_files]
+def assemble_corpus(
+    project_path: str, static: StaticEnv | None = None, scan_all: bool = False
+) -> Corpus:
+    """Assemble the corpus.
+
+    Default scope is the current project (the log dir matching ``project_path``).
+    ``scan_all=True`` aggregates every project under ~/.claude/projects/, labeling
+    each session with its own (de-namespaced) project path.
+    """
+    sessions: list[Session] = []
+    file_count = 0
+    byte_size = 0
+
+    if scan_all:
+        for log_dir in all_project_log_dirs():
+            sfs = discover_sessions_in_dir(log_dir)
+            if not sfs:
+                continue
+            label = denamespace(log_dir.name)
+            sessions.extend(assemble_session(sf, label) for sf in sfs)
+            file_count += sum(1 + len(sf.subagent_logs) for sf in sfs)
+            byte_size += corpus_byte_size(sfs)
+        corpus_label = "<all projects>"
+    else:
+        sfs = discover_sessions(project_path)
+        sessions = [assemble_session(sf, project_path) for sf in sfs]
+        file_count = sum(1 + len(sf.subagent_logs) for sf in sfs)
+        byte_size = corpus_byte_size(sfs)
+        corpus_label = project_path
+
     cc_versions = {s.cc_version for s in sessions if s.cc_version}
     return Corpus(
-        project_path=project_path,
+        project_path=corpus_label,
         sessions=sessions,
         static=static or StaticEnv(),
         cc_versions=cc_versions,
-        file_count=sum(1 + len(sf.subagent_logs) for sf in sessions_files),
-        byte_size=corpus_byte_size(sessions_files),
+        file_count=file_count,
+        byte_size=byte_size,
     )

@@ -66,3 +66,10 @@ def test_zero_token_turns_dont_pollute_unpriced():
     s = session(turns=[turn(model="<synthetic>", u=usage())])  # 0 tokens
     m = compute_metrics(corpus([s]))
     assert "<synthetic>" not in m.unpriced_models
+
+
+def test_by_project_breakdown():
+    sa = session(sid="a", project="/proj/a", turns=[turn(u=usage(input=100))])
+    sb = session(sid="b", project="/proj/b", turns=[turn(u=usage(input=300))])
+    m = compute_metrics(corpus([sa, sb]))
+    assert m.by_project_tokens == {"/proj/b": 300, "/proj/a": 100}  # sorted desc

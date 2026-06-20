@@ -88,6 +88,15 @@ def render_markdown(agg: dict) -> str:
         L.append("**By skill:** " +
                  ", ".join(f"`{k}` {_fmt_int(v)}" for k, v in list(agg["by_skill"].items())[:8]))
         L.append("")
+    by_project = agg.get("by_project", {})
+    if len(by_project) > 1:  # only meaningful for --all (cross-project) scans
+        L.append("**By project (tokens):**")
+        L.append("")
+        L.append("| Project | Tokens |")
+        L.append("|---|--:|")
+        for proj, toks in list(by_project.items())[:15]:
+            L.append(f"| `{proj}` | {_fmt_int(toks)} |")
+        L.append("")
 
     # 3. Findings by analysis
     L.append("## Findings by analysis")

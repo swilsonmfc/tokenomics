@@ -26,9 +26,8 @@ def project_log_dir(project_abs_path: str | Path) -> Path:
     return PROJECTS_DIR / namespaced_dir(project_abs_path)
 
 
-def discover_sessions(project_abs_path: str | Path) -> list[SessionFiles]:
-    """Enumerate session files (+ their subagent transcripts) for a project."""
-    root = project_log_dir(project_abs_path)
+def discover_sessions_in_dir(root: Path) -> list[SessionFiles]:
+    """Enumerate session files (+ subagent transcripts) inside one log dir."""
     if not root.is_dir():
         return []
     out: list[SessionFiles] = []
@@ -45,6 +44,28 @@ def discover_sessions(project_abs_path: str | Path) -> list[SessionFiles]:
                 metas[agent_id] = m
         out.append(SessionFiles(session_id, main, logs, metas))
     return out
+
+
+def discover_sessions(project_abs_path: str | Path) -> list[SessionFiles]:
+    """Session files for one project (the current default scope)."""
+    return discover_sessions_in_dir(project_log_dir(project_abs_path))
+
+
+def all_project_log_dirs() -> list[Path]:
+    """Every project log dir under ~/.claude/projects/ (for --all scans)."""
+    if not PROJECTS_DIR.is_dir():
+        return []
+    return [d for d in sorted(PROJECTS_DIR.iterdir()) if d.is_dir()]
+
+
+def denamespace(folder_name: str) -> str:
+    """Best-effort, readable project label from a namespaced log-dir name.
+
+    Lossy (the original `/` vs `.` vs `-` distinction isn't recoverable), so this
+    is for display only — the folder name itself remains the unambiguous key.
+    """
+    s = folder_name.lstrip("-")
+    return "/" + s.replace("-", "/") if s else folder_name
 
 
 def corpus_byte_size(sessions: list[SessionFiles]) -> int:

@@ -21,8 +21,9 @@ def _default_project() -> str:
 def cmd_scan(args: argparse.Namespace) -> int:
     from .report.aggregate import run_scan
 
-    paths = run_scan(args.project, deep=args.deep)
-    print(f"tokenomics scan complete → {paths['report']}")
+    paths = run_scan(args.project, deep=args.deep, scan_all=args.all)
+    scope = "all projects" if args.all else args.project
+    print(f"tokenomics scan complete ({scope}) → {paths['report']}")
     return 0
 
 
@@ -55,9 +56,9 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
     from .assemble import assemble_corpus
     from .metrics import compute_metrics, reconcile_subagents
 
-    corpus = assemble_corpus(args.project)
+    corpus = assemble_corpus(args.project, scan_all=args.all)
     m = compute_metrics(corpus)
-    print(f"Project: {args.project}")
+    print(f"Project: {corpus.project_path}")
     print(f"Sessions: {m.session_count}  Subagents: {m.subagent_count}  "
           f"Files: {corpus.file_count}  Bytes: {corpus.byte_size:,}")
     print(f"Total tokens: {m.total_usage.total_tokens:,}  "
@@ -82,7 +83,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     sp = sub.add_parser("scan", help="analyze logs + static config, write .tokenomics/ report")
-    sp.add_argument("--project", default=_default_project())
+    sp.add_argument("--project", default=_default_project(),
+                    help="project to scan (default: current directory)")
+    sp.add_argument("--all", action="store_true",
+                    help="scan ALL projects under ~/.claude/projects, not just this one")
     sp.add_argument("--deep", action="store_true", help="LLM enrichment pass (semantic findings)")
     sp.set_defaults(func=cmd_scan)
 
@@ -101,6 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     xp = sub.add_parser("reconcile", help="P1 gate: print totals + subagent token reconciliation")
     xp.add_argument("--project", default=_default_project())
+    xp.add_argument("--all", action="store_true", help="reconcile across all projects")
     xp.set_defaults(func=cmd_reconcile)
 
     return p

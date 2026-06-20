@@ -25,10 +25,10 @@ def _output_dir(project_path: str) -> Path:
     return d
 
 
-def build_aggregates(project_path: str) -> dict:
+def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
     cfg = load_config(project_path)
     static = collect_static(project_path)
-    corpus = assemble_corpus(project_path, static)
+    corpus = assemble_corpus(project_path, static, scan_all=scan_all)
     metrics = compute_metrics(corpus)
     findings = run_all(corpus, cfg)
     recs = reconcile_subagents(corpus)
@@ -44,7 +44,8 @@ def build_aggregates(project_path: str) -> dict:
     return {
         "schema_version": AGGREGATES_SCHEMA_VERSION,
         "generated_at": datetime.now(UTC).isoformat(),
-        "project": project_path,
+        "project": corpus.project_path,
+        "scope": "all-projects" if scan_all else "project",
         "corpus_meta": {
             "sessions": metrics.session_count,
             "subagents": metrics.subagent_count,
@@ -70,6 +71,7 @@ def build_aggregates(project_path: str) -> dict:
         "by_model_cost": {k: round(v, 2) for k, v in metrics.by_model_cost.items()},
         "by_plugin": metrics.by_plugin_tokens,
         "by_skill": metrics.by_skill_tokens,
+        "by_project": metrics.by_project_tokens,
         "tool_histogram": metrics.tool_histogram,
         "mcp_servers_used": metrics.mcp_servers_used,
         "context_series_summary": ctx_summary[:20],
@@ -87,9 +89,9 @@ def build_aggregates(project_path: str) -> dict:
     }
 
 
-def run_scan(project_path: str, deep: bool = False) -> dict[str, str]:
+def run_scan(project_path: str, deep: bool = False, scan_all: bool = False) -> dict[str, str]:
     out_dir = _output_dir(project_path)
-    aggregates = build_aggregates(project_path)
+    aggregates = build_aggregates(project_path, scan_all=scan_all)
 
     if deep:
         try:

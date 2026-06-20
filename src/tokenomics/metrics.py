@@ -87,6 +87,7 @@ class CorpusMetrics:
     by_model_cost: dict[str, float] = field(default_factory=dict)
     by_plugin_tokens: dict[str, int] = field(default_factory=dict)
     by_skill_tokens: dict[str, int] = field(default_factory=dict)
+    by_project_tokens: dict[str, int] = field(default_factory=dict)
     tool_histogram: dict[str, int] = field(default_factory=dict)
     mcp_servers_used: dict[str, int] = field(default_factory=dict)
     cache_read: int = 0
@@ -111,12 +112,14 @@ def compute_metrics(corpus: Corpus) -> CorpusMetrics:
     by_skill: Counter[str] = Counter()
     tools: Counter[str] = Counter()
     mcp: Counter[str] = Counter()
+    by_project: Counter[str] = Counter()
     unpriced: set[str] = set()
 
-    def account(turn: Turn, default_model: str | None) -> None:
+    def account(turn: Turn, default_model: str | None, project: str) -> None:
         nonlocal total, cost, weight
         if turn.usage is None or turn.usage.total_tokens == 0:
             return
+        by_project[project] += turn.usage.total_tokens
         model = turn.model or default_model
         total = total + turn.usage
         c = pricing.usage_cost_usd(turn.usage, model)
@@ -141,13 +144,14 @@ def compute_metrics(corpus: Corpus) -> CorpusMetrics:
 
     subagent_count = 0
     for session in corpus.sessions:
+        proj = session.project_path
         for turn in session.turns:
-            account(turn, None)
+            account(turn, None, proj)
             count_tools(turn)
         for sub in session.subagents:
             subagent_count += 1
             for turn in sub.turns:
-                account(turn, sub.model)
+                account(turn, sub.model, proj)
                 count_tools(turn)
 
     return CorpusMetrics(
@@ -158,6 +162,7 @@ def compute_metrics(corpus: Corpus) -> CorpusMetrics:
         by_model_cost=dict(sorted(by_model_cost.items(), key=lambda kv: -kv[1])),
         by_plugin_tokens=dict(by_plugin.most_common()),
         by_skill_tokens=dict(by_skill.most_common()),
+        by_project_tokens=dict(by_project.most_common()),
         tool_histogram=dict(tools.most_common()),
         mcp_servers_used=dict(mcp.most_common()),
         cache_read=total.cache_read,
