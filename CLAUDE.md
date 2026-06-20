@@ -9,10 +9,11 @@ LLM pass for semantic notes only.
 
 ```bash
 uv sync --extra dev                                   # set up env
-uv run pytest                                         # 61 tests
+uv run pytest                                         # 79 tests (3 skip w/o real logs)
 uv run ruff check src/ tests/                         # lint
 uv run python -m tokenomics.cli scan --project <path> # run a scan
 uv run python -m tokenomics.cli mine --project <path> --all  # harvest candidate patterns
+uv run python -m tokenomics.cli promote --project <path> --all-qualifying  # candidate→empirical
 uv run python -m tokenomics.cli reconcile --project <path>  # P1 token-accounting gate
 ```
 
@@ -37,6 +38,9 @@ uv run python -m tokenomics.cli reconcile --project <path>  # P1 token-accountin
 - Subagent tokens are counted ONCE from transcripts. `toolUseResult.totalTokens` is the
   subagent's FINAL-turn snapshot (not a sum) — used only to cross-check linkage.
 - Detectors are pure (no I/O); thresholds live in `config.Thresholds` so tests pin them.
+- Savings go through `pricing.estimate_savings` (model-aware USD + range + `confidence`) on
+  *provably-avoidable* volume only — never a hardcoded multiplier or "all of X". The report
+  sums by confidence tier, never one bankable total.
 - Pricing lives in `config.MODEL_PRICES`, sourced from the `claude-api` skill — update it
   there, not from memory. `[1m]` is not a price premium on current models.
 - Keep this file lean: it is re-sent every turn and the project's own linter flags bloat.

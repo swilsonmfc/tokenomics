@@ -9,12 +9,32 @@ and isolates failures so one broken detector can't sink a scan.
 
 ```
 Finding(detector_id, analysis_no, severity: Severity(INFO|LOW|MED|HIGH),
-        title, evidence: dict, est_savings_tokens, est_savings_usd,
-        est_savings_weight, recommendation, deep_enrichable, deep_note)
+        title, evidence: dict, est_savings_tokens,
+        est_savings_usd, est_savings_usd_lo, est_savings_usd_hi,
+        est_savings_weight, confidence: Confidence(LOW|MED|HIGH),
+        recommendation, deep_enrichable, deep_note)
 ```
 
 `evidence` carries concrete numbers + sample session/turn ids. `deep_enrichable=True` marks
 a finding the `--deep` pass may annotate with a semantic note.
+
+### Savings are scoped counterfactuals, not vibes
+
+Every savings figure is built by `pricing.estimate_savings(avoidable_tokens, model, kind,
+frac, confidence)` — there are no hardcoded `* 5` / `// 4` multipliers left. Three rules:
+
+- **Avoidable volume is scoped to what's provably cuttable** — only the *busted* cache
+  writes, only the *repeated* greps, only the *duplicate* review runs, only re-reads *past
+  the first*. Never "all of X."
+- **USD is model-aware and ranged.** `frac=(lo,hi)` (named in `config.Thresholds`, e.g.
+  `cache_bust_avoidable_frac`) yields `est_savings_usd_lo/hi`; `est_savings_usd` is the
+  midpoint. USD is `None` for unpriced models, but `est_savings_weight` (used for ranking)
+  is always defined.
+- **`confidence` says how much to trust it.** `HIGH` = real price arithmetic on a provable
+  counterfactual (routing tier delta). `MED` = well-scoped volume, inferred counterfactual
+  (cache busts, duplicate reviews, re-reads, CLAUDE.md overage). `LOW` = heuristic upper
+  bound (an index *might* cut greps; some big tool output is necessary). The report sums
+  savings **by confidence tier** — never one bankable total.
 
 ## The seven analyses
 

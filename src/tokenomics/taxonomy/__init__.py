@@ -122,6 +122,17 @@ class Catalog:
         return out
 
 
+def load_patterns_file(path: str | Path) -> list[Pattern]:
+    """Parse + validate the patterns in a single catalog TOML file."""
+    data = tomllib.loads(Path(path).read_text())
+    out: list[Pattern] = []
+    for raw in data.get("pattern", []):
+        p = _coerce(raw)
+        _validate(p)
+        out.append(p)
+    return out
+
+
 def load_catalog(catalog_dir: Path | None = None,
                  project_path: str | Path | None = None) -> Catalog:
     """Load + validate every ``*.toml`` pattern file. Stable order by id.
@@ -188,5 +199,6 @@ def dump_patterns_toml(patterns: list[Pattern], header: str = "") -> str:
 
 __all__ = [
     "Catalog", "Pattern", "RuleError", "CATEGORY_ANALYSIS",
-    "PROJECT_CATALOG_SUBDIR", "load_catalog", "dump_patterns_toml",
+    "PROJECT_CATALOG_SUBDIR", "load_catalog", "load_patterns_file",
+    "dump_patterns_toml",
 ]

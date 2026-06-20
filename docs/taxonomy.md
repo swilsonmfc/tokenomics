@@ -76,18 +76,32 @@ Output: `.tokenomics/mined.json`, `.tokenomics/mined-report.md` (candidate table
 per-session benchmark), and `.tokenomics/taxonomy/mined.toml` (the candidate records,
 in catalog format). `load_catalog(project_path=…)` picks that file up, so candidates
 ride along on later scans — but the matcher **ignores `candidate` patterns unless
-`match_candidate_patterns = true`** (they're correlational until promoted). Promote by
-moving a record into a curated catalog file and changing its `maturity`.
+`match_candidate_patterns = true`** (they're correlational until promoted).
 
 It is deterministic and stdlib-only (no ML); output is correlational, so confounders
 (a session may be expensive because it was *long*, not *badly routed*) are why the
 trust gate exists. Run `tokenomics mine --all` to pool sessions across projects — more
 data, sharper cohorts. Mining needs ≥ `mine_min_sessions` scorable sessions.
 
-> Matching caveat: declarative rules (curated and candidate) are evaluated against the
-> **corpus-level** feature vector, while mined thresholds are derived from the
-> **per-session** distribution. Opt-in candidate matching is therefore a coarse
-> approximation; the mined report (per-session benchmark) is the precise view.
+### Matching `session`-scoped rules
+
+Mined thresholds are fit on the **per-session** distribution, so a mined (`scope =
+"session"`) rule is judged the same way: the matcher evaluates it against each session's
+feature vector and fires only if it holds in ≥ `mine_session_hit_ratio` of sessions (the
+finding records `session_hit_ratio`). Curated `scope = "trajectory"` rules still evaluate
+against the corpus-level vector. This is what lets a threshold like `bust_turns >= 4`
+mean the same thing at match time as it did at mine time — summed corpus counts no longer
+make every mined rule fire trivially.
+
+### Promotion: `candidate` → `empirical`
+
+`tokenomics promote --project <p> [--all-qualifying | <pattern_id>…]` turns a reviewed
+candidate into a trusted `empirical` record that fires **by default** (no opt-in). A
+candidate qualifies only if it (1) **reappears** when the current corpus is re-mined
+(stability) and (2) separates at ≥ `promote_min_separation`. Qualifying records move from
+`mined.toml` into `promoted.toml` with their id renamed `mined.*` → `empirical.*` and
+`maturity` flipped; the rest stay as candidates. Nothing is promoted that a fresh mine of
+today's data does not still support.
 
 ## Adding a pattern
 

@@ -8,6 +8,17 @@ from pathlib import Path
 from ..config import OUTPUT_DIRNAME
 
 _SEV_ICON = {3: "🔴", 2: "🟠", 1: "🟡", 0: "ℹ️"}
+_CONF_ICON = {3: "🟢", 2: "🟡", 1: "⚪"}
+_CONF_LABEL = {3: "high", 2: "med", 1: "low"}
+
+
+def _fmt_usd_range(lo, hi, mid=None) -> str | None:
+    """A `$lo–$hi` range, collapsing to a point when lo≈hi; None if unpriced."""
+    if lo is None or hi is None:
+        return f"${mid:,.2f}" if mid is not None else None
+    if abs(hi - lo) < 0.005:
+        return f"${lo:,.2f}"
+    return f"${lo:,.2f}–${hi:,.2f}"
 _ANALYSIS_NAMES = {
     1: "Code-context search efficiency",
     2: "Routing intelligence",
@@ -62,7 +73,25 @@ def render_markdown(agg: dict) -> str:
         for f in top:
             tok = f.get("est_savings_tokens")
             tail = f" (~{_fmt_int(tok)} tok)" if tok else ""
-            L.append(f"  - {_SEV_ICON[f['severity']]} {f['title']}{tail}")
+            ci = _CONF_ICON.get(f.get("confidence", 1), "⚪")
+            L.append(f"  - {_SEV_ICON[f['severity']]} {f['title']}{tail} {ci}")
+    # Savings summed by confidence tier — deliberately NOT one bankable total,
+    # since low-confidence figures are hypotheses, not money in the bank.
+    by_conf: dict[int, list[float]] = {}
+    for f in findings:
+        if f["severity"] < 1:
+            continue
+        lo, hi = f.get("est_savings_usd_lo"), f.get("est_savings_usd_hi")
+        if lo is None or hi is None:
+            continue
+        acc = by_conf.setdefault(int(f.get("confidence", 1)), [0.0, 0.0])
+        acc[0] += lo
+        acc[1] += hi
+    if by_conf:
+        L.append("- **Estimated savings by confidence** _(ranges; not a single total)_:")
+        for c in sorted(by_conf, reverse=True):
+            lo, hi = by_conf[c]
+            L.append(f"  - {_CONF_ICON[c]} {_CONF_LABEL[c]}: {_fmt_usd_range(lo, hi)}")
     rec = cm.get("subagent_reconciliation", {})
     if rec.get("checked"):
         L.append(f"- _Subagent token reconciliation_: "
@@ -115,9 +144,16 @@ def render_markdown(agg: dict) -> str:
         for f in items:
             L.append(f"{_SEV_ICON[f['severity']]} **{f['title']}** "
                      f"_({f['severity_label']})_")
-            if f.get("est_savings_tokens"):
-                L.append(f"  - Est. savings: ~{_fmt_int(f['est_savings_tokens'])} tokens"
-                         + (f", ${f['est_savings_usd']:,.2f}" if f.get("est_savings_usd") else ""))
+            usd = _fmt_usd_range(f.get("est_savings_usd_lo"), f.get("est_savings_usd_hi"),
+                                 f.get("est_savings_usd"))
+            if f.get("est_savings_tokens") or usd:
+                bits = []
+                if f.get("est_savings_tokens"):
+                    bits.append(f"~{_fmt_int(f['est_savings_tokens'])} tok")
+                if usd:
+                    bits.append(usd)
+                conf = _CONF_LABEL.get(int(f.get("confidence", 1)), "low")
+                L.append(f"  - Est. savings: {', '.join(bits)} _({conf} confidence)_")
             if f.get("recommendation"):
                 L.append(f"  - {f['recommendation']}")
             if f.get("pattern_id"):

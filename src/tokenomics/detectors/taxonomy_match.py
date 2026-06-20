@@ -10,7 +10,7 @@ a new declarative pattern is a catalog edit, not a code change.
 from __future__ import annotations
 
 from ..config import Config
-from ..features import compute_features
+from ..features import compute_features, compute_session_features
 from ..model import Corpus
 from ..taxonomy import load_catalog
 from ..taxonomy.evaluator import evaluate
@@ -27,18 +27,43 @@ class TaxonomyMatchDetector:
     def run(self, corpus: Corpus, cfg: Config) -> list[Finding]:
         catalog = load_catalog(project_path=corpus.project_path)
         feats = compute_features(corpus, cfg)
-        ns = {**feats.as_namespace(), "th": cfg.thresholds}
+        fdict = feats.to_dict()
+        corpus_ns = {**feats.as_namespace(), "th": cfg.thresholds}
+        # Mined thresholds were fit on the per-session distribution, so a
+        # session-scoped rule is judged the same way: how many sessions it holds
+        # in, not whether it holds on the all-sessions-folded vector (where summed
+        # int signals balloon and the rule would near-always fire). Built lazily.
+        session_ns: list[dict] | None = None
         out: list[Finding] = []
         for pattern in catalog.declarative():
             # Mined candidates are correlational until promoted — opt-in only.
             if pattern.maturity == "candidate" and not cfg.match_candidate_patterns:
                 continue
             code = pattern.compiled()
-            if code is None or not evaluate(code, ns):
+            if code is None:
                 continue
-            fdict = feats.to_dict()
+            extra: dict = {}
+            if pattern.scope == "session":
+                if session_ns is None:
+                    session_ns = [
+                        {**compute_session_features(s, corpus.static, cfg).as_namespace(),
+                         "th": cfg.thresholds}
+                        for s in corpus.sessions
+                    ]
+                if not session_ns:
+                    continue
+                hits = sum(1 for ns in session_ns if evaluate(code, ns))
+                ratio = hits / len(session_ns)
+                if ratio < cfg.thresholds.mine_session_hit_ratio:
+                    continue
+                extra = {"session_hit_ratio": round(ratio, 3),
+                         "sessions_matched": hits, "sessions_total": len(session_ns)}
+            elif not evaluate(code, corpus_ns):
+                continue
+
             evidence = {s: fdict[s] for s in pattern.signals if s in fdict}
             evidence["maturity"] = pattern.maturity
+            evidence.update(extra)
             if pattern.remediation_skill:
                 evidence["remediation_skill"] = pattern.remediation_skill
             out.append(Finding(

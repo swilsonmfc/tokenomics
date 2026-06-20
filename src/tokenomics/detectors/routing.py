@@ -8,7 +8,7 @@ from .. import pricing
 from ..config import MODEL_TIER, Config
 from ..model import Corpus
 from ._util import all_turns
-from .base import Finding, Severity
+from .base import Confidence, Finding, Severity
 
 
 class RoutingDetector:
@@ -48,12 +48,23 @@ class RoutingDetector:
         top_model, top_tokens = tokens_by_model.most_common(1)[0]
         top_share = top_tokens / total_tokens
 
+        # Real counterfactual: the trivial-premium tokens re-priced on a cheap tier.
+        # A firm price delta (HIGH confidence) — lo == hi, no fudge fraction.
+        cheap = "claude-haiku-4-5"
+        prem_in = pricing.tokens_cost_usd(trivial_premium_tokens, top_model, "input")
+        cheap_in = pricing.tokens_cost_usd(trivial_premium_tokens, cheap, "input")
+        save_usd = round(prem_in - cheap_in, 4) if (prem_in and cheap_in) else None
+        routing_savings = {
+            "est_savings_tokens": trivial_premium_tokens or None,
+            "est_savings_usd": save_usd,
+            "est_savings_usd_lo": save_usd,
+            "est_savings_usd_hi": save_usd,
+            "est_savings_weight": save_usd if save_usd is not None
+            else trivial_premium_tokens / 1_000_000 * 4,
+            "confidence": Confidence.HIGH,
+        }
+
         if MODEL_TIER.get(top_model, 0) >= 3 and top_share >= th.opus_share:
-            # Estimated savings: route the trivial-premium share to a cheaper tier.
-            cheap = "claude-haiku-4-5"
-            prem_in = pricing.tokens_cost_usd(trivial_premium_tokens, top_model, "input")
-            cheap_in = pricing.tokens_cost_usd(trivial_premium_tokens, cheap, "input")
-            save_usd = (prem_in - cheap_in) if (prem_in and cheap_in) else None
             findings.append(Finding(
                 detector_id=self.id, analysis_no=self.analysis_no,
                 severity=Severity.HIGH,
@@ -65,9 +76,6 @@ class RoutingDetector:
                     "trivial_premium_turns": trivial_premium_turns,
                     "trivial_premium_tokens": trivial_premium_tokens,
                 },
-                est_savings_tokens=trivial_premium_tokens,
-                est_savings_usd=save_usd,
-                est_savings_weight=trivial_premium_tokens / 1_000_000 * 4,
                 recommendation=(
                     "Route trivial/mechanical turns (short output, no tools, no "
                     "thinking) to a cheaper model, and pin cheap subagents via "
@@ -76,6 +84,7 @@ class RoutingDetector:
                 ),
                 pattern_id="routing.premium-everywhere",
                 deep_enrichable=True,
+                **routing_savings,
             ))
 
         if trivial_premium_turns and total_turns:
@@ -87,10 +96,10 @@ class RoutingDetector:
                     title=f"{ratio:.0%} of turns are trivial work on a premium model",
                     evidence={"trivial_premium_turns": trivial_premium_turns,
                               "total_turns": total_turns},
-                    est_savings_tokens=trivial_premium_tokens,
                     recommendation="Downshift trivial turns to a cheaper model tier.",
                     pattern_id="routing.premium-everywhere",
                     deep_enrichable=True,
+                    **{**routing_savings, "confidence": Confidence.MED},
                 ))
         return findings
 

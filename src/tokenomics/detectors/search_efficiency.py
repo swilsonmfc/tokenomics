@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections import Counter
 
+from .. import pricing
 from ..config import Config
 from ..model import Corpus
 from ._util import all_turns, is_search_call
-from .base import Finding, Severity
+from .base import Confidence, Finding, Severity
 
 
 def _indexer_installed(corpus: Corpus) -> str | None:
@@ -27,19 +28,24 @@ class SearchEfficiencyDetector:
         th = cfg.thresholds
         total_calls = 0
         search_calls = 0
-        search_tokens = 0
         grep_patterns: Counter[str] = Counter()
+        pattern_tokens: Counter[str] = Counter()
+        model_tokens: Counter[str] = Counter()
 
-        for turn, _, _ in all_turns(corpus):
+        for turn, default_model, _ in all_turns(corpus):
+            if turn.usage and turn.usage.total_tokens:
+                model_tokens[pricing.normalize_model(turn.model or default_model)
+                             or "unknown"] += turn.usage.total_tokens
             for call in turn.tool_calls:
                 total_calls += 1
                 if is_search_call(call):
                     search_calls += 1
-                    if call.result_chars:
-                        search_tokens += call.result_chars // 4
-                    pat = call.input.get("pattern") or call.input.get("command") or ""
+                    pat = str(call.input.get("pattern")
+                              or call.input.get("command") or "").strip()[:120]
                     if pat:
-                        grep_patterns[str(pat).strip()[:120]] += 1
+                        grep_patterns[pat] += 1
+                        if call.result_chars:
+                            pattern_tokens[pat] += call.result_chars // 4
 
         if total_calls == 0:
             return []
@@ -48,11 +54,19 @@ class SearchEfficiencyDetector:
         ratio = search_calls / total_calls
         indexer = _indexer_installed(corpus)
         repeated = [(p, c) for p, c in grep_patterns.most_common(5) if c >= th.repeat_grep]
+        dominant_model = model_tokens.most_common(1)[0][0] if model_tokens else None
+        # Avoidable = result tokens of *repeated* identical searches (an index
+        # removes the re-scan). If an indexer is already installed, the realizable
+        # saving is ~0 — flag the behavior but don't claim tokens back.
+        repeated_tokens = sum(pattern_tokens[p] for p, c in grep_patterns.items()
+                              if c >= th.repeat_grep)
 
         search_heavy = ratio >= th.search_ratio and search_calls >= th.search_min_calls
         if search_heavy:
             sev = Severity.HIGH if not indexer else Severity.MED
-            est = int(search_tokens * th.search_reduction_factor)
+            savings = pricing.estimate_savings(
+                0 if indexer else repeated_tokens, dominant_model,
+                kind="input", frac=th.search_avoidable_frac, confidence=Confidence.LOW)
             findings.append(Finding(
                 detector_id=self.id, analysis_no=self.analysis_no, severity=sev,
                 title=(f"Search-heavy: {search_calls}/{total_calls} tool calls "
@@ -62,10 +76,9 @@ class SearchEfficiencyDetector:
                     "total_calls": total_calls,
                     "ratio": round(ratio, 3),
                     "indexer_installed": indexer,
+                    "repeated_search_tokens": repeated_tokens,
                     "top_patterns": grep_patterns.most_common(5),
                 },
-                est_savings_tokens=est,
-                est_savings_weight=est / 1_000_000 * 5,
                 recommendation=(
                     (f"An indexing tool ({indexer}) is installed but the trajectory "
                      "leans on raw grep — prefer LSP navigation/symbol lookup. ")
@@ -75,6 +88,7 @@ class SearchEfficiencyDetector:
                 ),
                 pattern_id="search.grep-heavy",
                 deep_enrichable=True,
+                **savings,
             ))
         if repeated and not search_heavy:
             findings.append(Finding(

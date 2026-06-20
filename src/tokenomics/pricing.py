@@ -15,7 +15,12 @@ from __future__ import annotations
 
 import re
 
-from .config import MODEL_PRICES, ModelPrice
+from .config import (
+    CACHE_READ_MULT,
+    CACHE_WRITE_5M_MULT,
+    MODEL_PRICES,
+    ModelPrice,
+)
 from .model import TokenUsage
 
 _TAG_RE = re.compile(r"\[[^\]]*\]$")  # trailing "[1m]" etc.
@@ -85,3 +90,80 @@ def tokens_cost_usd(tokens: int, model: str | None, kind: str = "input") -> floa
         return None
     rate = price.output_per_mtok if kind == "output" else price.input_per_mtok
     return tokens * rate / 1_000_000.0
+
+
+# Per-token rate ($/Mtok) for each savings "kind". The premium of a cache write
+# over the cache read it should have been is (write_5m − read) × input.
+_CACHE_PREMIUM_MULT = CACHE_WRITE_5M_MULT - CACHE_READ_MULT
+
+
+def _priced_rate(price: ModelPrice | None, kind: str) -> float | None:
+    """USD/Mtok for a savings kind, or None when the model is unpriced."""
+    if price is None:
+        return None
+    if kind == "output":
+        return price.output_per_mtok
+    if kind == "cache_premium":
+        return price.input_per_mtok * _CACHE_PREMIUM_MULT
+    if kind == "cache_read":
+        return price.cache_read_per_mtok
+    return price.input_per_mtok  # "input"
+
+
+def _weight_rate(price: ModelPrice | None, kind: str) -> float:
+    """USD/Mtok for ranking — always defined (falls back for unpriced models)."""
+    rate = _priced_rate(price, kind)
+    if rate is not None:
+        return rate
+    base = _DEFAULT_INPUT_RATE
+    if kind == "output":
+        return base * 5
+    if kind == "cache_premium":
+        return base * _CACHE_PREMIUM_MULT
+    if kind == "cache_read":
+        return base * CACHE_READ_MULT
+    return base
+
+
+def estimate_savings(
+    avoidable_tokens: int,
+    model: str | None,
+    *,
+    kind: str = "input",
+    frac: tuple[float, float] = (1.0, 1.0),
+    confidence,
+) -> dict:
+    """Build the savings fields of a Finding from an avoidable token volume.
+
+    ``avoidable_tokens`` is the volume already scoped to what could plausibly be
+    cut (e.g. only the duplicate review runs, only repeated greps). ``frac`` is
+    the (low, high) fraction of that volume realistically recoverable — the
+    source of the reported USD range. ``kind`` picks the rate: ``input`` /
+    ``output`` (token rates), ``cache_premium`` (a write that should have been a
+    read), or ``cache_read`` (cached re-send). USD is ``None`` for unpriced
+    models; ``est_savings_weight`` is always defined so the finding still ranks.
+
+    Returns a dict splattable into ``Finding(**...)``.
+    """
+    lo_f, hi_f = frac
+    mid_f = (lo_f + hi_f) / 2.0
+    price = price_for(model)
+    per_mtok = 1_000_000.0
+
+    usd_rate = _priced_rate(price, kind)
+    if usd_rate is not None:
+        usd_lo = round(avoidable_tokens * lo_f * usd_rate / per_mtok, 4)
+        usd_hi = round(avoidable_tokens * hi_f * usd_rate / per_mtok, 4)
+        usd_mid = round((usd_lo + usd_hi) / 2.0, 4)
+    else:
+        usd_lo = usd_hi = usd_mid = None
+
+    weight = avoidable_tokens * mid_f * _weight_rate(price, kind) / per_mtok
+    return {
+        "est_savings_tokens": int(round(avoidable_tokens * mid_f)),
+        "est_savings_usd": usd_mid,
+        "est_savings_usd_lo": usd_lo,
+        "est_savings_usd_hi": usd_hi,
+        "est_savings_weight": weight,
+        "confidence": confidence,
+    }

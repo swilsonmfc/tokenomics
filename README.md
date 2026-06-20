@@ -28,6 +28,15 @@ The report covers seven savings analyses, each a pluggable detector:
 6. **Review-stage agents** — redundant / over-modeled review passes
 7. **Second-tier** — file re-reads, tool-result bloat, fan-out, server-tool waste
 
+Each savings figure is a **scoped, model-aware counterfactual with a confidence tag**:
+waste is priced (via `pricing.py`) only on provably-avoidable volume — the busted cache
+writes, the repeated greps, the duplicate review runs — and reported as a USD range
+(`high`/`med`/`low`), summed by confidence tier rather than as one false "bankable" total.
+
+Beyond the seven curated analyses, `tokenomics mine --all` harvests **candidate** patterns
+from your own corpus (expensive vs cheap sessions); `tokenomics promote` graduates the ones
+that are stable and well-separated into **empirical** patterns that fire by default.
+
 Four advisory **skills** turn findings into fixes: `claude-md-linter`,
 `code-indexing-advisor`, `dynamic-router-advisor`, `context-window-evaluator`.
 

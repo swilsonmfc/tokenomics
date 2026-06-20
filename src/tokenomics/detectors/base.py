@@ -26,6 +26,25 @@ class Severity(IntEnum):
         return self.name
 
 
+class Confidence(IntEnum):
+    """How much to trust a savings estimate.
+
+    HIGH  — real price arithmetic on a provable counterfactual (e.g. the same
+            tokens billed at a cheaper model's rate).
+    MED   — avoidable volume is well-scoped but the counterfactual is inferred
+            (e.g. a re-read that "should" have been one read).
+    LOW   — heuristic upper bound / hypothesis (e.g. an index *might* cut greps).
+    """
+
+    LOW = 1
+    MED = 2
+    HIGH = 3
+
+    @property
+    def label(self) -> str:
+        return self.name
+
+
 @dataclass
 class Finding:
     detector_id: str
@@ -34,8 +53,11 @@ class Finding:
     title: str
     evidence: dict = field(default_factory=dict)
     est_savings_tokens: int | None = None
-    est_savings_usd: float | None = None
-    est_savings_weight: float = 0.0
+    est_savings_usd: float | None = None      # midpoint of the USD range (None = unpriced)
+    est_savings_usd_lo: float | None = None
+    est_savings_usd_hi: float | None = None
+    est_savings_weight: float = 0.0           # model-aware USD-equivalent, for ranking
+    confidence: Confidence = Confidence.LOW
     recommendation: str = ""
     deep_enrichable: bool = False
     deep_note: str | None = None  # filled by enrich/deep.py
@@ -45,6 +67,8 @@ class Finding:
         d = asdict(self)
         d["severity"] = int(self.severity)
         d["severity_label"] = self.severity.label
+        d["confidence"] = int(self.confidence)
+        d["confidence_label"] = self.confidence.label
         return d
 
 

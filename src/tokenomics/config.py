@@ -97,11 +97,12 @@ class Thresholds:
     search_ratio: float = 0.35
     search_min_calls: int = 8
     repeat_grep: int = 3
-    search_reduction_factor: float = 0.5
     # D2 routing
     opus_share: float = 0.8
     trivial_output_tokens: int = 120
-    # D3 context window
+    # D3 context window — validated 2026-06 against the real corpus (46 sessions,
+    # `mine --all`): cheap/expensive session medians bracket these (peak 92k vs
+    # 207k; avg 58k vs 137k), so the defaults sit between the cohorts as intended.
     ctx_peak: int = 150_000
     ctx_avg: int = 80_000
     # D4 CLAUDE.md
@@ -115,6 +116,16 @@ class Thresholds:
     reread: int = 3
     fanout: int = 6
     tool_result_bloat_chars: int = 50_000
+    fanout_overhead_tokens: int = 3_000  # est. fixed cache-write overhead per extra agent
+    # Savings: (low, high) fraction of flagged volume that is realistically
+    # recoverable. The range *is* the reported USD range; these replace the old
+    # buried multipliers (×0.5, //4, //2) and are overridable per-project.
+    search_avoidable_frac: tuple[float, float] = (0.3, 0.6)  # repeated greps an index kills
+    reread_avoidable_frac: tuple[float, float] = (0.6, 1.0)  # re-reads past the first
+    tool_bloat_avoidable_frac: tuple[float, float] = (0.1, 0.4)  # some big output is needed
+    review_redundant_frac: tuple[float, float] = (0.8, 1.0)  # duplicate runs ≈ fully avoidable
+    cache_bust_avoidable_frac: tuple[float, float] = (0.5, 0.9)  # busted writes → reads
+    claudemd_avoidable_frac: tuple[float, float] = (0.5, 1.0)  # overage above the budget
     # Taxonomy declarative patterns (matched against the trajectory feature vector)
     thinking_trivial: int = 3        # premium turns that think hard for a trivial answer
     premium_subagent_runs: int = 2   # subagent runs left on a top-tier model
@@ -123,6 +134,12 @@ class Thresholds:
     mine_min_cohort: int = 3         # min sessions in each (expensive/cheap) cohort
     mine_min_session_output: int = 200  # ignore sessions with less output (noisy ratio)
     mine_min_separation: float = 0.2    # median gap as a fraction of the signal's range
+    # A session-scoped (mined) rule fires for the corpus only if it holds in at
+    # least this fraction of sessions — matched the way thresholds were derived.
+    mine_session_hit_ratio: float = 0.25
+    # Promotion gate (candidate → empirical): a candidate must separate at least
+    # this strongly AND survive a re-mine of the current corpus.
+    promote_min_separation: float = 0.35
 
 
 @dataclass(frozen=True)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from ..config import Config
 from ..metrics import session_context_peak_avg
 from ..model import Corpus
-from .base import Finding, Severity
+from .base import Confidence, Finding, Severity
 
 
 class ContextWindowDetector:
@@ -53,6 +53,7 @@ class ContextWindowDetector:
                     "mcp_servers_in_context": sorted(mcp_servers),
                 },
                 est_savings_weight=max(0, global_avg - th.ctx_avg) / 1_000_000 * 5,
+                confidence=Confidence.LOW,
                 recommendation=(
                     "Offload heavy work to subagents (fresh context), trim CLAUDE.md, "
                     "disable MCP servers you don't call, and compact long sessions. "

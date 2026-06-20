@@ -1,4 +1,4 @@
-"""tokenomics CLI: scan | report | mine | capture | watch | reconcile.
+"""tokenomics CLI: scan | report | mine | promote | capture | watch | reconcile.
 
 Commands invoke deterministic analysis over Claude Code session logs and write a
 ``.tokenomics/`` folder into the analyzed project. ``reconcile`` is a P1 gate
@@ -82,8 +82,8 @@ def cmd_mine(args: argparse.Namespace) -> int:
     if patterns:
         tax_dir = Path(args.project) / PROJECT_CATALOG_SUBDIR
         tax_dir.mkdir(parents=True, exist_ok=True)
-        header = (f"Mined candidate patterns ({today}). Correlational — review and "
-                  "promote into a curated catalog file before trusting them.")
+        header = (f"Mined candidate patterns ({today}). Correlational — confirm with "
+                  "`tokenomics promote` (stability + separation gated) before trusting.")
         (tax_dir / "mined.toml").write_text(dump_patterns_toml(patterns, header))
 
     if not report.mined:
@@ -91,6 +91,37 @@ def cmd_mine(args: argparse.Namespace) -> int:
     else:
         print(f"tokenomics mine: {len(patterns)} candidate pattern(s) from "
               f"{report.included_count} sessions → {out_dir / 'mined-report.md'}")
+        print("  promote qualifying ones with `tokenomics promote --all-qualifying`")
+    return 0
+
+
+def cmd_promote(args: argparse.Namespace) -> int:
+    from datetime import UTC, datetime
+
+    from .assemble import assemble_corpus
+    from .config import load_config
+    from .promote import promote_candidates
+    from .static_analysis import collect_static
+
+    cfg = load_config(args.project)
+    static = collect_static(args.project)
+    corpus = assemble_corpus(args.project, static, scan_all=args.all)
+    today = datetime.now(UTC).date().isoformat()
+    ids = None if args.all_qualifying else (args.pattern or None)
+    if not args.all_qualifying and not args.pattern:
+        print("tokenomics promote: name pattern id(s) or pass --all-qualifying",
+              file=sys.stderr)
+        return 1
+
+    res = promote_candidates(args.project, cfg, corpus, pattern_ids=ids, today=today)
+    if res.reason:
+        print(f"tokenomics promote: {res.reason}")
+        return 1
+    for p in res.promoted:
+        print(f"  ✓ promoted {p.id}  ({p.rule})")
+    for pid, why in res.skipped:
+        print(f"  – skipped {pid}: {why}")
+    print(f"tokenomics promote: {len(res.promoted)} promoted, {len(res.skipped)} skipped")
     return 0
 
 
@@ -141,6 +172,16 @@ def build_parser() -> argparse.ArgumentParser:
     mp.add_argument("--all", action="store_true",
                     help="pool sessions across all projects (recommended — more data)")
     mp.set_defaults(func=cmd_mine)
+
+    pp = sub.add_parser("promote",
+                        help="promote qualifying mined candidates to empirical patterns")
+    pp.add_argument("--project", default=_default_project())
+    pp.add_argument("--all", action="store_true",
+                    help="pool sessions across all projects for the stability re-mine")
+    pp.add_argument("--all-qualifying", action="store_true",
+                    help="promote every candidate that passes the gate")
+    pp.add_argument("pattern", nargs="*", help="specific candidate pattern id(s) to promote")
+    pp.set_defaults(func=cmd_promote)
 
     cp = sub.add_parser("capture", help="capture-mode hook entrypoint (reads event JSON on stdin)")
     cp.add_argument("event", choices=["session-start", "prompt-submit", "post-tool", "stop"])

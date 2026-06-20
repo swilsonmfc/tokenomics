@@ -43,7 +43,7 @@ def render_mine_markdown(rep: dict, project: str, generated_at: str) -> str:
                  "uniform or the corpus is too small to be conclusive.")
         L.append("")
     else:
-        L.append("Correlational — review before promoting to the curated catalog. Each is "
+        L.append("Correlational — confirm with `tokenomics promote` before trusting. Each is "
                  "written to `.tokenomics/taxonomy/mined.toml` as `maturity = candidate`.")
         L.append("")
         L.append("| Signal | Expensive (median) | Cheap (median) | Separation | Suggested rule |")
@@ -69,9 +69,9 @@ def render_mine_markdown(rep: dict, project: str, generated_at: str) -> str:
 
     L.append("## How to act")
     L.append("")
-    L.append("- Confirm a candidate, then promote it: move its record from "
-             "`mined.toml` into a curated catalog file and set `maturity` accordingly.")
-    L.append("- To let candidates fire as findings on future scans, set "
+    L.append("- Promote qualifying candidates with `tokenomics promote --all-qualifying` "
+             "(stability + separation gated) — they become `empirical` and fire by default.")
+    L.append("- To preview candidates as findings before promoting, set "
              "`match_candidate_patterns = true` in `.tokenomics/config.toml`.")
     L.append("")
     return "\n".join(L)
