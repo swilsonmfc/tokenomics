@@ -1,0 +1,11 @@
+{
+  "name": "tokenomics-marketplace",
+  "owner": { "name": "Steve Wilson" },
+  "plugins": [
+    {
+      "name": "tokenomics",
+      "source": "./",
+      "description": "Diagnoses high token costs in Claude Code usage, discovers savings, and produces a recommendations report."
+    }
+  ]
+}

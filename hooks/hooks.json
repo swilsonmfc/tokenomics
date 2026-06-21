@@ -1,0 +1,50 @@
+{
+  "description": "tokenomics capture mode — real-time token-waste flagging by reading the live session transcript incrementally. Best-effort, exits 0 fast, writes only to .tokenomics/.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --project \"${CLAUDE_PLUGIN_ROOT}\" python -m tokenomics.cli capture session-start",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --project \"${CLAUDE_PLUGIN_ROOT}\" python -m tokenomics.cli capture prompt-submit",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --project \"${CLAUDE_PLUGIN_ROOT}\" python -m tokenomics.cli capture post-tool",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --project \"${CLAUDE_PLUGIN_ROOT}\" python -m tokenomics.cli capture stop",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
