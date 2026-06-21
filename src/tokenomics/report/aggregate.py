@@ -17,7 +17,6 @@ from ..detectors import run_all
 from ..features import compute_features
 from ..metrics import compute_metrics, reconcile_subagents, session_context_peak_avg
 from ..static_analysis import collect_static
-from ..taxonomy import load_catalog
 from .render import render_markdown
 
 
@@ -37,7 +36,7 @@ def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
     findings.sort(key=lambda f: (-int(f.severity), -(f.est_savings_weight or 0)))
 
     features = compute_features(corpus, cfg)
-    catalog = load_catalog(project_path=project_path)
+    catalog = corpus.catalog  # loaded once in assemble_corpus
     matched = sorted({f.pattern_id for f in findings if f.pattern_id})
 
     ctx_summary = []
@@ -61,6 +60,7 @@ def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
             "subagent_reconciliation": {
                 "checked": len(recs),
                 "within_tolerance": sum(1 for r in recs if r.within_tolerance),
+                "unlinked": sum(1 for r in recs if not r.linked),
             },
         },
         "totals": {

@@ -17,9 +17,12 @@ def collect_mcp(project_path: str | Path) -> list[dict]:
             seen.add(name)
             out.append({"name": name, "type": kind, "source": source})
 
-    # Project .mcp.json
+    # Project .mcp.json, then user-scope config. Claude Code stores user MCP
+    # servers in ~/.claude.json (settings.json holds hooks/permissions); we read
+    # both so neither generation's layout is missed.
     for cand, src in [
         (Path(project_path) / ".mcp.json", "project"),
+        (Path.home() / ".claude.json", "user"),
         (CLAUDE_HOME / "settings.json", "user-settings"),
     ]:
         try:

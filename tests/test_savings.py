@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from conftest import corpus, session, subagent, tool, turn, usage
 
 from tokenomics import pricing
+from tokenomics.config import Config
 from tokenomics.detectors.base import Confidence
 from tokenomics.detectors.cache_busting import DETECTOR as cache_busting
 from tokenomics.detectors.review_agents import DETECTOR as review_agents
@@ -86,6 +89,21 @@ def test_review_redundant_runs_scoped(cfg):
     # Only the duplicate's tokens count as avoidable, not all review volume.
     assert f.est_savings_tokens and f.est_savings_tokens <= 4000
     assert f.est_savings_usd and f.est_savings_usd > 0
+
+
+def test_review_dup_threshold_honored(cfg):
+    # Two same-type runs are flagged at the default review_dup=2, but raising the
+    # knob to 3 means a pair is no longer "redundant" — the config knob is live.
+    sub_turns = [turn(model="claude-sonnet-4-6", u=usage(output=4000))]
+    subs = [subagent(agent_id="r1", agent_type="code-reviewer", turns=sub_turns,
+                     model="claude-sonnet-4-6"),
+            subagent(agent_id="r2", agent_type="code-reviewer", turns=sub_turns,
+                     model="claude-sonnet-4-6")]
+    c = corpus([session(subs=subs)])
+    from tokenomics.detectors.review_agents import DETECTOR as review_agents
+    assert review_agents.run(c, cfg)[0].evidence["duplicate_run_count"] == 1
+    strict = replace(Config(), thresholds=replace(Config().thresholds, review_dup=3))
+    assert review_agents.run(c, strict)[0].evidence["duplicate_run_count"] == 0
 
 
 def test_review_single_run_quiet_savings(cfg):

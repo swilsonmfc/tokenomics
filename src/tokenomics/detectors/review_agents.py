@@ -34,18 +34,18 @@ class ReviewAgentsDetector:
         findings: list[Finding] = []
         total_review_tokens = sum(subagent_usage(s).total_tokens for _, s in review_runs)
 
-        # Redundant reviews: the duplicate runs (everything past the first of each
-        # review type within a session) are the directly-avoidable volume.
-        seen: dict[str, set[str]] = defaultdict(set)
-        dup_subs = []
-        dup_sessions: set[str] = set()
+        # Redundant reviews: when one review type runs ≥ review_dup times in a
+        # session, every run past the first is directly-avoidable volume.
+        groups: dict[tuple[str, str], list] = defaultdict(list)
         for sid, sub in review_runs:
             t = sub.agent_type or sub.description or "review"
-            if t in seen[sid]:
-                dup_subs.append(sub)
+            groups[(sid, t)].append(sub)
+        dup_subs = []
+        dup_sessions: set[str] = set()
+        for (sid, _t), runs in groups.items():
+            if len(runs) >= th.review_dup:
+                dup_subs.extend(runs[1:])
                 dup_sessions.add(sid)
-            else:
-                seen[sid].add(t)
         redundant_sessions = sorted(dup_sessions)
         redundant_tokens = sum(subagent_usage(s).total_tokens for s in dup_subs)
         redundant_cost = sum(pricing.usage_cost_usd(subagent_usage(s), s.model) or 0.0
@@ -56,7 +56,7 @@ class ReviewAgentsDetector:
         # Over-modeled reviews: same work re-priced at a cheaper tier — the saving
         # is the price *delta*, not a token reduction.
         over_runs = [s for _, s in review_runs
-                     if MODEL_TIER.get((s.model or "").replace("[1m]", ""), 0) >= 3]
+                     if MODEL_TIER.get(pricing.normalize_model(s.model) or "", 0) >= 3]
         om_delta = 0.0
         om_weight = 0.0
         for s in over_runs:

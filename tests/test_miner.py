@@ -109,6 +109,7 @@ def test_matcher_ignores_candidates_by_default(tmp_path):
 
     c = corpus(sessions)
     c.project_path = str(tmp_path)
+    c.catalog = load_catalog(project_path=tmp_path)
     default = taxonomy_match.run(c, cfg)
     assert not any((f.pattern_id or "").startswith("mined.") for f in default)
 

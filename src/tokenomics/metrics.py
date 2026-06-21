@@ -58,12 +58,17 @@ class Reconciliation:
         return self.last_turn_tokens - self.rollup_tokens
 
     @property
+    def linked(self) -> bool:
+        """Whether a parent rollup was found to check against at all."""
+        return self.rollup_tokens > 0
+
+    @property
     def within_tolerance(self) -> bool:
         # The parent rollup's totalTokens is the subagent's FINAL-turn usage
         # total, not a sum. Linkage is correct when our parsed final turn
         # matches it; the full transcript sum is legitimately larger.
-        if self.rollup_tokens == 0:
-            return True  # no rollup to check against
+        if not self.linked:
+            return True  # no rollup to check against — reported separately as unlinked
         return abs(self.delta) <= max(100, int(self.rollup_tokens * 0.05))
 
 

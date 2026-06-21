@@ -18,6 +18,7 @@ from tokenomics.model import (
     ToolCall,
     Turn,
 )
+from tokenomics.taxonomy import load_catalog
 
 _TS = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
@@ -60,9 +61,10 @@ def subagent(agent_id="a1", agent_type=None, desc=None, turns=None, model=None,
     )
 
 
-def corpus(sessions=None, static=None) -> Corpus:
+def corpus(sessions=None, static=None, catalog=None) -> Corpus:
     return Corpus(project_path="/tmp/proj", sessions=sessions or [],
-                  static=static or StaticEnv())
+                  static=static or StaticEnv(),
+                  catalog=catalog if catalog is not None else load_catalog())
 
 
 @pytest.fixture

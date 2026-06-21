@@ -18,6 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from .taxonomy import Catalog
+
 
 @dataclass(frozen=True)
 class TokenUsage:
@@ -183,3 +185,6 @@ class Corpus:
     cc_versions: set[str] = field(default_factory=set)
     file_count: int = 0
     byte_size: int = 0
+    # Best-practice catalog (curated + this project's mined/promoted patterns),
+    # loaded once at assembly so detectors stay pure (no I/O in ``run``).
+    catalog: Catalog = field(default_factory=Catalog)

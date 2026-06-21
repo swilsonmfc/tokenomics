@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from ..model import Corpus, Session, ToolCall, Turn
+# Search-call detection lives in features (the shared substrate) to keep a single
+# definition; re-exported here so detectors keep importing it from _util.
+from ..features import SEARCH_BASH as SEARCH_BASH_RE
+from ..features import SEARCH_TOOLS, is_search_call
+from ..model import Corpus, Session, Turn
 
-SEARCH_TOOLS = {"Grep", "Glob"}
-SEARCH_BASH_RE = ("grep", "rg ", "ripgrep", "find ", "ag ", "ack ")
 REVIEW_PAT = ("review", "critique", "security", "audit", "verify", "lint")
+
+__all__ = ["all_turns", "is_search_call", "looks_review", "SEARCH_TOOLS", "SEARCH_BASH_RE"]
 
 
 def all_turns(corpus: Corpus) -> Iterator[tuple[Turn, str | None, Session]]:
@@ -19,15 +23,6 @@ def all_turns(corpus: Corpus) -> Iterator[tuple[Turn, str | None, Session]]:
         for sub in session.subagents:
             for turn in sub.turns:
                 yield turn, sub.model, session
-
-
-def is_search_call(call: ToolCall) -> bool:
-    if call.name in SEARCH_TOOLS:
-        return True
-    if call.name == "Bash":
-        cmd = str(call.input.get("command", "")).lower()
-        return any(tok in cmd for tok in SEARCH_BASH_RE)
-    return False
 
 
 def looks_review(text: str | None) -> bool:

@@ -63,6 +63,7 @@ def test_session_rule_below_hit_ratio_quiet(tmp_path):
     (d / "mined.toml").write_text(dump_patterns_toml([_candidate("bust_turns >= 1")]))
     c = _bursty_corpus(n_hit=1)  # 1/12 ≈ 0.08 < 0.25
     c.project_path = str(tmp_path)
+    c.catalog = load_catalog(project_path=tmp_path)
     assert not any((f.pattern_id or "") == "mined.bust_turns" for f in taxonomy_match.run(c, cfg))
 
 
@@ -73,6 +74,7 @@ def test_session_rule_above_hit_ratio_fires(tmp_path):
     (d / "mined.toml").write_text(dump_patterns_toml([_candidate("bust_turns >= 1")]))
     c = _bursty_corpus(n_hit=5)  # 5/12 ≈ 0.42 ≥ 0.25
     c.project_path = str(tmp_path)
+    c.catalog = load_catalog(project_path=tmp_path)
     fired = [f for f in taxonomy_match.run(c, cfg) if (f.pattern_id or "") == "mined.bust_turns"]
     assert fired and fired[0].evidence["sessions_matched"] == 5
 
@@ -93,6 +95,7 @@ def test_promote_qualifying_candidate(tmp_path):
     assert cat.by_id()["empirical.search_ratio"].maturity == "empirical"
     c = _mixed_corpus()
     c.project_path = str(tmp_path)
+    c.catalog = cat
     fired = taxonomy_match.run(c, cfg)  # default cfg: candidates off
     assert any((f.pattern_id or "") == "empirical.search_ratio" for f in fired)
 

@@ -62,7 +62,8 @@ class CacheBustingDetector:
             total_read += u.cache_read
             total_create += u.cache_creation
             # A bust: large fresh cache write with near-zero read (prefix changed).
-            if u.cache_creation > 5000 and u.cache_read < u.cache_creation * 0.2:
+            if (u.cache_creation > th.cache_bust_min_creation
+                    and u.cache_read < u.cache_creation * th.cache_bust_read_ratio):
                 bust_turns.append({
                     "session": session.session_id,
                     "uuid": turn.uuid,

@@ -12,7 +12,6 @@ from __future__ import annotations
 from ..config import Config
 from ..features import compute_features, compute_session_features
 from ..model import Corpus
-from ..taxonomy import load_catalog
 from ..taxonomy.evaluator import evaluate
 from .base import Finding, Severity
 
@@ -25,7 +24,7 @@ class TaxonomyMatchDetector:
     analysis_no = 0  # per-finding analysis_no comes from the pattern's category
 
     def run(self, corpus: Corpus, cfg: Config) -> list[Finding]:
-        catalog = load_catalog(project_path=corpus.project_path)
+        catalog = corpus.catalog  # loaded at assembly — detector stays pure (no I/O)
         feats = compute_features(corpus, cfg)
         fdict = feats.to_dict()
         corpus_ns = {**feats.as_namespace(), "th": cfg.thresholds}

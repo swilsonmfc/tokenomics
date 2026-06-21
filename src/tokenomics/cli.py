@@ -142,8 +142,12 @@ def cmd_reconcile(args: argparse.Namespace) -> int:
         print(f"Unpriced models: {m.unpriced_models}")
     recs = reconcile_subagents(corpus)
     bad = [r for r in recs if not r.within_tolerance]
+    unlinked = [r for r in recs if not r.linked]
     print(f"Subagent reconciliation: {len(recs) - len(bad)}/{len(recs)} within tolerance "
           f"(final-turn usage vs rollup totalTokens)")
+    if unlinked:
+        print(f"  {len(unlinked)} subagent(s) had no parent rollup to check against "
+              f"(unlinked — token totals still counted from transcripts)")
     for r in bad[:10]:
         print(f"  MISMATCH {r.agent_id}: last_turn={r.last_turn_tokens} "
               f"rollup={r.rollup_tokens} delta={r.delta} (full_transcript={r.transcript_total})")

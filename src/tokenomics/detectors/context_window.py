@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .. import pricing
 from ..config import Config
 from ..metrics import session_context_peak_avg
 from ..model import Corpus
@@ -52,7 +53,7 @@ class ContextWindowDetector:
                     "sessions_over_peak_threshold": len(high_peaks),
                     "mcp_servers_in_context": sorted(mcp_servers),
                 },
-                est_savings_weight=max(0, global_avg - th.ctx_avg) / 1_000_000 * 5,
+                est_savings_weight=pricing.savings_weight(global_avg - th.ctx_avg, None),
                 confidence=Confidence.LOW,
                 recommendation=(
                     "Offload heavy work to subagents (fresh context), trim CLAUDE.md, "

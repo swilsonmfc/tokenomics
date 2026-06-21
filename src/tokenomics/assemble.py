@@ -30,6 +30,7 @@ from .model import (
     ToolCall,
     Turn,
 )
+from .taxonomy import load_catalog
 
 # Record types that are not conversation turns — skipped by the assembler.
 _NON_TURN_TYPES = {
@@ -273,6 +274,16 @@ def assemble_session(sf: SessionFiles, project_path: str) -> Session:
         if sub is not None:
             subagents.append(sub)
 
+    # Robust spawn→subagent join: the spawning tool_use carries both the agentId
+    # (linked above) and its turn uuid, so we can attribute each subagent to the
+    # turn that launched it without relying solely on the rollup filename.
+    spawn_turn_by_agent = {
+        call.spawned_subagent: call.turn_uuid
+        for turn in turns for call in turn.tool_calls if call.spawned_subagent
+    }
+    for sub in subagents:
+        sub.parent_turn_uuid = spawn_turn_by_agent.get(sub.agent_id)
+
     session = Session(
         session_id=sf.session_id,
         project_path=project_path,
@@ -327,4 +338,7 @@ def assemble_corpus(
         cc_versions=cc_versions,
         file_count=file_count,
         byte_size=byte_size,
+        # Load the catalog once here (curated + this project's mined/promoted),
+        # so the taxonomy detector reads it from the corpus and performs no I/O.
+        catalog=load_catalog(project_path=project_path),
     )

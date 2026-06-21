@@ -100,6 +100,7 @@ class Thresholds:
     # D2 routing
     opus_share: float = 0.8
     trivial_output_tokens: int = 120
+    trivial_premium_ratio_min: float = 0.15  # fire when this share of turns is trivial-on-premium
     # D3 context window — validated 2026-06 against the real corpus (46 sessions,
     # `mine --all`): cheap/expensive session medians bracket these (peak 92k vs
     # 207k; avg 58k vs 137k), so the defaults sit between the cohorts as intended.
@@ -108,13 +109,18 @@ class Thresholds:
     # D4 CLAUDE.md
     claudemd_tokens: int = 2_000
     claudemd_lines: int = 200
-    # D5 cache busting
+    # D5 cache busting — a "bust" is a large fresh write with near-zero read
+    # (prefix changed). Shared by the detector, the feature vector, and capture.
     cache_efficiency: float = 0.60
-    # D6 review agents
+    cache_bust_min_creation: int = 5_000  # ignore small writes
+    cache_bust_read_ratio: float = 0.2    # read < creation × this ⇒ bust
+    # D6 review agents — a review type is redundant when it runs ≥ this many times
+    # in one session; the runs past the first are the avoidable duplicates.
     review_dup: int = 2
     # D7 second tier
     reread: int = 3
     fanout: int = 6
+    server_tool_min_calls: int = 20  # web search+fetch volume before flagging
     tool_result_bloat_chars: int = 50_000
     fanout_overhead_tokens: int = 3_000  # est. fixed cache-write overhead per extra agent
     # Savings: (low, high) fraction of flagged volume that is realistically

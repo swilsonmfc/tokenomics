@@ -62,7 +62,7 @@ def test_deep_enrich_additive(tmp_path):
     enrich(agg, tmp_path, client=_StubClient())
     assert agg["findings"][0]["deep_note"] == "stubbed note"
     data = json.loads((tmp_path / "deep" / "enrichment.json").read_text())
-    assert data["routing"] == "stubbed note"
+    assert data["routing::x"] == "stubbed note"  # keyed by detector_id + title
 
 
 def test_deep_skips_non_enrichable(tmp_path):

@@ -31,8 +31,9 @@ def read_new_records(project_dir: Path, session_id: str, log_path: Path) -> list
     new_offset = start
     try:
         size = log_path.stat().st_size
-        if size < start:  # file rotated/truncated — restart
+        if size < start:  # file rotated/truncated — restart from the top
             start = 0
+            new_offset = 0
         with log_path.open("r", encoding="utf-8", errors="replace") as fh:
             fh.seek(start)
             for line in fh:

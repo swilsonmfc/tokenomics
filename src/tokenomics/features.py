@@ -21,17 +21,19 @@ from .config import MODEL_TIER, Config
 from .metrics import session_context_peak_avg
 from .model import Corpus, ToolCall
 
-_SEARCH_TOOLS = {"Grep", "Glob"}
-_SEARCH_BASH = ("grep", "rg ", "ripgrep", "find ", "ag ", "ack ")
+# Canonical search-call detection (re-exported by detectors/_util; defined here
+# because features can't import the detectors package without a cycle).
+SEARCH_TOOLS = {"Grep", "Glob"}
+SEARCH_BASH = ("grep", "rg ", "ripgrep", "find ", "ag ", "ack ")
 _PREMIUM_TIER = 3
 
 
-def _is_search(call: ToolCall) -> bool:
-    if call.name in _SEARCH_TOOLS:
+def is_search_call(call: ToolCall) -> bool:
+    if call.name in SEARCH_TOOLS:
         return True
     if call.name == "Bash":
         cmd = str(call.input.get("command", "")).lower()
-        return any(tok in cmd for tok in _SEARCH_BASH)
+        return any(tok in cmd for tok in SEARCH_BASH)
     return False
 
 
@@ -118,12 +120,13 @@ def _compute(sessions, static, cfg: Config) -> TrajectoryFeatures:
             thinking_trivial += 1
         cache_read += u.cache_read
         cache_create += u.cache_creation
-        if u.cache_creation > 5000 and u.cache_read < u.cache_creation * 0.2:
+        if (u.cache_creation > th.cache_bust_min_creation
+                and u.cache_read < u.cache_creation * th.cache_bust_read_ratio):
             bust_turns += 1
         web_requests += u.web_search_requests + u.web_fetch_requests
         for call in turn.tool_calls:
             total_calls += 1
-            if _is_search(call):
+            if is_search_call(call):
                 search_calls += 1
                 pat = call.input.get("pattern") or call.input.get("command") or ""
                 if pat:

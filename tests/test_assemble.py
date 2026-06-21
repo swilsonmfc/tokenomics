@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from conftest import rec_assistant, rec_user_tool_result, write_jsonl
+from conftest import corpus, rec_assistant, rec_user_tool_result, write_jsonl
 
 from tokenomics.assemble import assemble_session
 from tokenomics.logpath import SessionFiles
@@ -111,5 +111,25 @@ def test_subagent_linkage_and_rollup(tmp_path):
     assert sub.resolved_model == "claude-haiku-4-5"
     assert sub.agent_type == "Explore"
     assert len(sub.turns) == 1
+    assert sub.parent_turn_uuid == "u1"  # joined to the spawning turn
     # main thread excludes sidechain turns
     assert all(not t.is_sidechain for t in s.turns)
+
+
+def test_reconcile_flags_unlinked_subagent(tmp_path):
+    # A subagent transcript with no parent rollup (toolUseResult) is "unlinked":
+    # its tokens are still counted, but it can't be cross-checked — and that must
+    # be visible, not silently counted as a passing reconciliation.
+    from tokenomics.metrics import reconcile_subagents
+
+    spawn = rec_assistant("u1", content=[
+        {"type": "tool_use", "id": "spawn1", "name": "Agent", "input": {}}],
+        usage_dict={"input_tokens": 1})
+    sub_recs = [rec_assistant("su1", sidechain=True,
+                              usage_dict={"input_tokens": 10, "output_tokens": 50})]
+    sf = _session_files(tmp_path, [spawn], subagents={"abc": sub_recs})
+    s = assemble_session(sf, "/tmp/proj")
+    recs = reconcile_subagents(corpus([s]))
+    assert len(recs) == 1
+    assert recs[0].linked is False
+    assert recs[0].rollup_tokens == 0

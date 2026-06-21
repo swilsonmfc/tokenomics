@@ -68,7 +68,9 @@ def enrich(aggregates: dict, out_dir: Path, client: ModelClient | None = None) -
         except Exception as exc:  # never let enrichment break a scan
             note = f"(enrichment failed: {exc})"
         finding["deep_note"] = note
-        enriched[finding["detector_id"]] = note
+        # Key by detector_id + title: a detector can emit several findings, and a
+        # bare detector_id key would let later ones clobber earlier notes.
+        enriched[f"{finding['detector_id']}::{finding.get('title', '')}"] = note
         count += 1
 
     deep_dir = out_dir / "deep"

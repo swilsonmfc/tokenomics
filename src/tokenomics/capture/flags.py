@@ -48,7 +48,8 @@ def evaluate_records(
             warnings.append(w)
             append_flag(project_dir, {"session": session_id, "type": "context_peak",
                                       "context_tokens": ctx})
-        if usage.cache_creation > 5000 and usage.cache_read < usage.cache_creation * 0.2:
+        if (usage.cache_creation > th.cache_bust_min_creation
+                and usage.cache_read < usage.cache_creation * th.cache_bust_read_ratio):
             warnings.append(f"cache bust: wrote {usage.cache_creation:,} cache tokens, "
                             f"read {usage.cache_read:,}")
             append_flag(project_dir, {"session": session_id, "type": "cache_bust",

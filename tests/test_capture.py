@@ -31,6 +31,22 @@ def test_offset_advances_incrementally(tmp_path):
     assert len(second) == 1 and second[0]["uuid"] == "u2"
 
 
+def test_offset_resets_on_truncation(tmp_path):
+    log = tmp_path / "s1.jsonl"
+    log.write_text("")
+    # Large initial content, fully consumed.
+    _append(log, [rec_assistant(f"u{i}", usage_dict={"input_tokens": 1}) for i in range(5)])
+    read_new_records(tmp_path, "s1", log)
+    # Rotation: file replaced with much smaller content.
+    log.write_text("")
+    _append(log, [rec_assistant("v1", usage_dict={"input_tokens": 1})])
+    assert [r["uuid"] for r in read_new_records(tmp_path, "s1", log)] == ["v1"]
+    # The offset must now track the small file: a later append is seen exactly once
+    # (a stale offset would re-trigger truncation and re-yield v1).
+    _append(log, [rec_assistant("v2", usage_dict={"input_tokens": 1})])
+    assert [r["uuid"] for r in read_new_records(tmp_path, "s1", log)] == ["v2"]
+
+
 def test_context_peak_flag_fires(tmp_path):
     cfg = Config()
     recs = [rec_assistant("u1", usage_dict={"input_tokens": 200_000})]

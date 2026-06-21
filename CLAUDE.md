@@ -9,7 +9,7 @@ LLM pass for semantic notes only.
 
 ```bash
 uv sync --extra dev                                   # set up env
-uv run pytest                                         # 79 tests (3 skip w/o real logs)
+uv run pytest                                         # 94 tests (3 skip w/o real logs)
 uv run ruff check src/ tests/                         # lint
 uv run python -m tokenomics.cli scan --project <path> # run a scan
 uv run python -m tokenomics.cli mine --project <path> --all  # harvest candidate patterns

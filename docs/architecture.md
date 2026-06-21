@@ -31,7 +31,7 @@ Module responsibilities (`src/tokenomics/`):
 | `report/` | `aggregate.py` orchestrates a scan → `aggregates.json`; `render.py` → `report.md`. |
 | `capture/` | Real-time hook: incremental transcript read + threshold flagging. |
 | `enrich/deep.py` | Optional LLM enrichment of `deep_enrichable` findings. |
-| `cli.py` | `scan | report | capture | watch | reconcile`. |
+| `cli.py` | `scan | report | mine | promote | capture | watch | reconcile`. |
 
 ## Data model
 

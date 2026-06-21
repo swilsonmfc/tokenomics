@@ -62,7 +62,7 @@ def render_markdown(agg: dict) -> str:
     L.append("## Executive summary")
     L.append("")
     L.append(f"- **Total tokens**: {_fmt_int(t['total_tokens'])}")
-    cost = t.get("cost_usd")
+    cost = t.get("cost_usd") or 0.0
     L.append(f"- **Estimated cost**: ${cost:,.2f}  (relative weight {t['relative_weight']:,.2f})")
     L.append(f"- **Cache efficiency**: {t['cache_efficiency']:.0%}")
     findings = agg["findings"]

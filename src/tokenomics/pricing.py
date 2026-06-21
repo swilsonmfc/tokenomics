@@ -125,6 +125,16 @@ def _weight_rate(price: ModelPrice | None, kind: str) -> float:
     return base
 
 
+def savings_weight(tokens: float, model: str | None, kind: str = "input") -> float:
+    """Ranking weight (token-dollars) for a flat avoidable token volume.
+
+    The model-aware analogue of a hardcoded multiplier: priced models use their
+    real rate, unpriced models fall back to the neutral default — the same basis
+    ``estimate_savings``/``usage_weight`` use, so weights stay comparable.
+    """
+    return max(0.0, tokens) * _weight_rate(price_for(model), kind) / 1_000_000.0
+
+
 def estimate_savings(
     avoidable_tokens: int,
     model: str | None,

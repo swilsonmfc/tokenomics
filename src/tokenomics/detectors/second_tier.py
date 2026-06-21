@@ -118,7 +118,7 @@ def _server_tools(corpus: Corpus, cfg: Config) -> Finding | None:
         if turn.usage:
             searches += turn.usage.web_search_requests
             fetches += turn.usage.web_fetch_requests
-    if searches + fetches < 20:
+    if searches + fetches < cfg.thresholds.server_tool_min_calls:
         return None
     return Finding(
         detector_id="second_tier.server_tools", analysis_no=7, severity=Severity.INFO,

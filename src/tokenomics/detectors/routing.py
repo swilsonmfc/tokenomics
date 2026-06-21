@@ -60,7 +60,7 @@ class RoutingDetector:
             "est_savings_usd_lo": save_usd,
             "est_savings_usd_hi": save_usd,
             "est_savings_weight": save_usd if save_usd is not None
-            else trivial_premium_tokens / 1_000_000 * 4,
+            else pricing.savings_weight(trivial_premium_tokens, top_model),
             "confidence": Confidence.HIGH,
         }
 
@@ -89,7 +89,7 @@ class RoutingDetector:
 
         if trivial_premium_turns and total_turns:
             ratio = trivial_premium_turns / total_turns
-            if ratio >= 0.15 and not findings:
+            if ratio >= th.trivial_premium_ratio_min and not findings:
                 findings.append(Finding(
                     detector_id=self.id, analysis_no=self.analysis_no,
                     severity=Severity.MED,
