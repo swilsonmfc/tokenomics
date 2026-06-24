@@ -35,6 +35,7 @@ CATEGORY_ANALYSIS: dict[str, int] = {
     "cache": 5,
     "review": 6,
     "secondtier": 7,
+    "output": 8,
 }
 
 _POLARITY = {"anti_pattern", "best_practice"}

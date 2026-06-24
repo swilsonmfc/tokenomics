@@ -49,6 +49,67 @@ def test_features_unused_mcp_and_pins(cfg):
     assert feats.agent_count == 2
 
 
+# ── external-corpus feature signals ──────────────────────────────────────────
+
+def test_features_verbose_prose_and_bloat(cfg):
+    prose = turn(uuid="p", u=usage(input=1000, output=700))           # no tools, big output
+    big = turn(uuid="b", u=usage(input=200, output=10),
+               tools=[tool("WebFetch", inp={"url": "x"}, result_chars=60_000)])
+    feats = compute_features(corpus([session(turns=[prose, big])]), cfg)
+    assert feats.verbose_prose_turns == 1
+    assert feats.bloated_tool_results == 1
+
+
+def test_features_repeated_calls_excludes_reads_and_edits(cfg):
+    tools = [
+        tool("Bash", tid="b1", inp={"command": "ls"}),
+        tool("Bash", tid="b2", inp={"command": "ls"}),       # identical → 1 repeat
+        tool("Read", tid="r1", inp={"file_path": "/a"}),
+        tool("Read", tid="r2", inp={"file_path": "/a"}),     # reread, NOT a repeated-call
+        tool("Edit", tid="e1", inp={"file_path": "/a"}),
+        tool("Edit", tid="e2", inp={"file_path": "/a"}),     # edit twice, NOT a repeated-call
+    ]
+    feats = compute_features(corpus([session(turns=[turn(u=usage(input=100), tools=tools)])]), cfg)
+    assert feats.repeated_tool_calls == 1
+
+
+def test_features_rework_loop_counts_reedit_after_command(cfg):
+    t1 = turn(uuid="t1", u=usage(input=100),
+              tools=[tool("Edit", tid="e1", inp={"file_path": "/a"})])
+    t2 = turn(uuid="t2", u=usage(input=100), parent="t1",
+              tools=[tool("Bash", tid="b1", inp={"command": "pytest"})])
+    t3 = turn(uuid="t3", u=usage(input=100), parent="t2",
+              tools=[tool("Edit", tid="e2", inp={"file_path": "/a"})])      # rework
+    feats = compute_features(corpus([session(turns=[t1, t2, t3])]), cfg)
+    assert feats.rework_loops == 1
+
+
+def test_features_input_growth_factor(cfg):
+    small = turn(uuid="s", u=usage(input=1_000))
+    big = turn(uuid="b", u=usage(input=10_000), parent="s")
+    feats = compute_features(corpus([session(turns=[small, big])]), cfg)
+    assert feats.input_growth_factor == 10.0
+
+
+def test_features_static_and_version_signals(cfg):
+    static = StaticEnv(
+        mcp_servers=[{"name": f"s{i}"} for i in range(11)],
+        claude_md=[{"lines": 250, "est_tokens": 900}],
+    )
+    sess = session(turns=[turn(u=usage(input=100))], cc_version="2.1.75")
+    feats = compute_features(corpus([sess], static), cfg)
+    assert feats.mcp_server_count == 11
+    assert feats.claudemd_lines == 250
+    assert feats.cc_cache_bug is True
+
+
+def test_cc_version_range_boundaries():
+    from tokenomics.features import cc_version_in_cache_bug_range as bug
+    assert bug("2.1.69") and bug("2.1.89") and bug("2.1.75")
+    assert not bug("2.1.68") and not bug("2.1.90") and not bug("2.2.0")
+    assert not bug(None) and not bug("garbage")
+
+
 # ── safe evaluator ───────────────────────────────────────────────────────────
 
 def test_evaluator_basic_truth():
@@ -119,6 +180,101 @@ def test_matcher_premium_subagents_fires(cfg):
     findings = taxonomy_match.run(corpus([session(turns=[turn(u=usage(input=10))], subs=subs)]),
                                   cfg)
     assert any(f.pattern_id == "routing.premium-subagents" for f in findings)
+
+
+# ── external-corpus patterns: matcher firing ─────────────────────────────────
+
+def _fired(findings, pid):
+    return any(f.pattern_id == pid for f in findings)
+
+
+def test_matcher_cc_cache_bug_fires(cfg):
+    sess = session(turns=[turn(u=usage(input=100, output=50))], cc_version="2.1.80")
+    findings = taxonomy_match.run(corpus([sess]), cfg)
+    assert _fired(findings, "cache.buggy-cc-version")
+
+
+def test_matcher_mcp_surface_and_claudemd_lines_fire(cfg):
+    static = StaticEnv(
+        mcp_servers=[{"name": f"s{i}"} for i in range(12)],
+        claude_md=[{"lines": 300, "est_tokens": 1000}],
+    )
+    findings = taxonomy_match.run(corpus([session(turns=[turn(u=usage(input=100))])], static), cfg)
+    assert _fired(findings, "mcp.tool-surface-bloat")
+    assert _fired(findings, "claudemd.over-line-limit")
+
+
+def test_matcher_verbose_prose_fires(cfg):
+    turns = [turn(uuid=f"p{i}", u=usage(input=100, output=800)) for i in range(5)]
+    findings = taxonomy_match.run(corpus([session(turns=turns)]), cfg)
+    assert _fired(findings, "output.verbose-prose")
+
+
+def test_matcher_no_subagent_offload_fires_and_clears_with_subagent(cfg):
+    big = [turn(u=usage(input=200_000, output=10))]                 # ctx_peak ≥ 150k
+    findings = taxonomy_match.run(corpus([session(turns=big)]), cfg)
+    assert _fired(findings, "context.no-subagent-offload")
+    # add a subagent → cause removed → pattern must not fire
+    with_sub = session(turns=big, subs=[subagent(turns=[turn(u=usage(input=50))])])
+    findings2 = taxonomy_match.run(corpus([with_sub]), cfg)
+    assert not _fired(findings2, "context.no-subagent-offload")
+
+
+def test_matcher_runaway_history_fires(cfg):
+    grow = [turn(uuid="a", u=usage(input=2_000)),
+            turn(uuid="b", u=usage(input=20_000), parent="a")]       # 10x growth ≥ 5x
+    findings = taxonomy_match.run(corpus([session(turns=grow)]), cfg)
+    assert _fired(findings, "context.runaway-history")
+
+
+def test_matcher_rework_and_repeated_calls_fire(cfg):
+    # two rework cycles + two identical Bash repeats
+    tools = []
+    for i in range(3):  # edit, run, edit, run, edit → 2 rework loops
+        tools.append(tool("Edit", tid=f"e{i}", inp={"file_path": "/a"}))
+        tools.append(tool("Bash", tid=f"r{i}", inp={"command": "pytest"}))
+    findings = taxonomy_match.run(
+        corpus([session(turns=[turn(u=usage(input=100), tools=tools)])]), cfg)
+    assert _fired(findings, "workflow.rework-loop")
+    # "pytest" Bash issued 3× → 2 repeats ≥ threshold 3? no — craft explicit repeats
+    rep = [tool("Bash", tid=f"x{i}", inp={"command": "make build"}) for i in range(4)]
+    findings2 = taxonomy_match.run(
+        corpus([session(turns=[turn(u=usage(input=100), tools=rep)])]), cfg)
+    assert _fired(findings2, "tooling.repeated-tool-calls")
+
+
+def test_matcher_noisy_tool_output_fires(cfg):
+    tools = [tool("Bash", tid=f"b{i}", inp={"command": f"cmd{i}"}, result_chars=60_000)
+             for i in range(3)]
+    findings = taxonomy_match.run(
+        corpus([session(turns=[turn(u=usage(input=100), tools=tools)])]), cfg)
+    assert _fired(findings, "tooling.noisy-tool-output")
+
+
+def test_matcher_session_sprawl_fires(cfg):
+    turns = [turn(uuid=f"t{i}", u=usage(input=100, output=50)) for i in range(130)]
+    findings = taxonomy_match.run(corpus([session(turns=turns)]), cfg)
+    assert _fired(findings, "context.session-sprawl")
+
+
+def test_matcher_repeated_grep_fires(cfg):
+    tools = [tool("Grep", tid=f"g{i}", inp={"pattern": "needle"}) for i in range(3)]
+    findings = taxonomy_match.run(
+        corpus([session(turns=[turn(u=usage(input=100), tools=tools)])]), cfg)
+    assert _fired(findings, "search.repeated-grep")
+
+
+def test_matcher_external_patterns_quiet_on_clean_session(cfg):
+    # a small, well-behaved session fires none of the new anti-patterns
+    clean = session(turns=[turn(model="claude-haiku-4-5", u=usage(input=500, output=100),
+                                tools=[tool("Read", inp={"file_path": "/a"})])],
+                    cc_version="2.2.0")
+    findings = taxonomy_match.run(corpus([clean]), cfg)
+    new_ids = {"search.repeated-grep", "context.no-subagent-offload", "context.session-sprawl",
+               "context.runaway-history", "claudemd.over-line-limit", "cache.buggy-cc-version",
+               "mcp.tool-surface-bloat", "tooling.noisy-tool-output",
+               "tooling.repeated-tool-calls", "workflow.rework-loop", "output.verbose-prose"}
+    assert not (new_ids & {f.pattern_id for f in findings})
 
 
 # ── linkage: detector findings carry a pattern_id ────────────────────────────

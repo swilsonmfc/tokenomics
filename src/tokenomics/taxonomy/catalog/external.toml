@@ -1,0 +1,191 @@
+# External cost taxonomy — patterns mined from a curated list of URLs + GitHub
+# repos (2026-06). See docs/taxonomy.md. All declarative: each rule is evaluated
+# against the trajectory feature vector (features.py) by detectors/taxonomy_match.py.
+# maturity = "curated" (externally sourced, not corpus-mined). Provenance names the
+# source repo/article each pattern came from.
+
+# ── Search ───────────────────────────────────────────────────────────────────
+
+[[pattern]]
+id = "search.repeated-grep"
+category = "search"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "declarative"
+rule = "repeated_search_max >= th.repeat_grep"
+signals = ["repeated_search_max", "search_calls"]
+severity = "low"
+remediation_skill = "code-indexing-advisor"
+maturity = "curated"
+provenance = "undefdev/token-efficiency; jgravelle/jcodemunch-mcp (session search dedupe)"
+reviewed = "2026-06"
+title = "Same search pattern repeated across the session"
+recommendation = "Cache/dedupe search results within a session; switch to symbol/AST navigation so the same lookup is not re-run."
+
+# ── Context ──────────────────────────────────────────────────────────────────
+
+[[pattern]]
+id = "context.no-subagent-offload"
+category = "context"
+polarity = "anti_pattern"
+scope = "session"
+engine = "declarative"
+rule = "ctx_peak >= th.ctx_peak and subagent_count == 0"
+signals = ["ctx_peak", "subagent_count"]
+severity = "med"
+remediation_skill = "context-window-evaluator"
+maturity = "curated"
+provenance = "open-gsd/gsd-core (lean orchestrator + fresh-context subagents); Reddit r/whaaat_ai"
+reviewed = "2026-06"
+title = "Large context with no subagent offload"
+recommendation = "Delegate research/exploration to fresh-context subagents so only summaries return; keep the main thread a lean orchestrator."
+
+[[pattern]]
+id = "context.session-sprawl"
+category = "context"
+polarity = "anti_pattern"
+scope = "session"
+engine = "declarative"
+rule = "total_turns >= th.long_session_turns"
+signals = ["total_turns", "ctx_peak"]
+severity = "low"
+remediation_skill = "context-window-evaluator"
+maturity = "curated"
+provenance = "IyadhKhalfallah/clauditor (session rotation); galando/tokenomics (snowball at turn 7)"
+reviewed = "2026-06"
+title = "Very long single session (history re-sent every turn)"
+recommendation = "Rotate or /compact long sessions; carry a compact summary + structured state (files, commits) into a fresh session instead of replaying history."
+
+[[pattern]]
+id = "context.runaway-history"
+category = "context"
+polarity = "anti_pattern"
+scope = "session"
+engine = "declarative"
+rule = "input_growth_factor >= th.input_growth_factor"
+signals = ["input_growth_factor", "ctx_peak"]
+severity = "med"
+remediation_skill = "context-window-evaluator"
+maturity = "curated"
+provenance = "IyadhKhalfallah/clauditor (waste factor up to 20.1x); open-gsd/gsd-core (context rot); alexgreensh/token-optimizer (ghost tokens)"
+reviewed = "2026-06"
+title = "Per-turn context balloons over the session"
+recommendation = "Compact proactively (~turn 5-7) or rotate; the full history is re-sent and re-billed every turn it grows."
+
+# ── CLAUDE.md ────────────────────────────────────────────────────────────────
+
+[[pattern]]
+id = "claudemd.over-line-limit"
+category = "claudemd"
+polarity = "anti_pattern"
+scope = "static"
+engine = "declarative"
+rule = "claudemd_lines > th.claudemd_lines"
+signals = ["claudemd_lines", "claudemd_tokens"]
+severity = "low"
+remediation_skill = "claude-md-linter"
+maturity = "curated"
+provenance = "oakenai.tech claude-workspace-optimizer (200-line load cutoff)"
+reviewed = "2026-06"
+title = "Memory index past the line-load cutoff"
+recommendation = "Keep the memory index under ~200 lines; move tables, code blocks, and reference material to linked topic files loaded on demand."
+
+# ── Cache ────────────────────────────────────────────────────────────────────
+
+[[pattern]]
+id = "cache.buggy-cc-version"
+category = "cache"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "declarative"
+rule = "cc_cache_bug"
+signals = ["cc_cache_bug"]
+severity = "high"
+maturity = "curated"
+provenance = "IyadhKhalfallah/clauditor (known cache-bug version range 2.1.69-2.1.89)"
+reviewed = "2026-06"
+title = "Claude Code version with a known prompt-cache bug"
+recommendation = "Upgrade off Claude Code 2.1.69-2.1.89; those releases fail to reuse the prompt cache and re-bill 10-20x. Verify cache_efficiency after upgrading."
+
+# ── MCP surface (reported under Context) ─────────────────────────────────────
+
+[[pattern]]
+id = "mcp.tool-surface-bloat"
+category = "context"
+polarity = "anti_pattern"
+scope = "static"
+engine = "declarative"
+rule = "mcp_server_count >= th.mcp_server_count"
+signals = ["mcp_server_count", "unused_mcp_count"]
+severity = "med"
+remediation_skill = "context-window-evaluator"
+maturity = "curated"
+provenance = "Reddit best-practices (200K->70K with too many tools); jgravelle/jcodemunch-mcp (core vs default tool profile)"
+reviewed = "2026-06"
+title = "Large MCP surface (server schemas re-sent every turn)"
+recommendation = "Toggle on only the MCP servers a session needs; every configured server's tool schemas sit in the system prompt each turn (per-server tool counts are runtime-only, so server count is the static proxy)."
+
+# ── Second-tier (tool I/O + workflow) ────────────────────────────────────────
+
+[[pattern]]
+id = "tooling.noisy-tool-output"
+category = "secondtier"
+polarity = "anti_pattern"
+scope = "trajectory"
+engine = "declarative"
+rule = "bloated_tool_results >= th.bloated_tool_results"
+signals = ["bloated_tool_results"]
+severity = "med"
+maturity = "curated"
+provenance = "rtk-ai/rtk; ppgranger/token-saver; maazizit/tokensaver; mksglu/context-mode; Mibayy/token-savior"
+reviewed = "2026-06"
+title = "Verbose CLI/tool output flooding context across the session"
+recommendation = "Install a PreToolUse output-compression hook (filter/dedupe/truncate test, build, install, git output); keep errors, drop progress/banners."
+
+[[pattern]]
+id = "tooling.repeated-tool-calls"
+category = "secondtier"
+polarity = "anti_pattern"
+scope = "session"
+engine = "declarative"
+rule = "repeated_tool_calls >= th.repeated_tool_calls"
+signals = ["repeated_tool_calls"]
+severity = "low"
+maturity = "curated"
+provenance = "ooples/token-optimizer-mcp (repeated-call caching/compression)"
+reviewed = "2026-06"
+title = "Identical tool call re-issued within a session"
+recommendation = "Cache and reuse identical tool results within a session instead of re-invoking; for code lookups prefer symbol/indexed retrieval that is stable across calls."
+
+[[pattern]]
+id = "workflow.rework-loop"
+category = "secondtier"
+polarity = "anti_pattern"
+scope = "session"
+engine = "declarative"
+rule = "rework_loops >= th.rework_loops"
+signals = ["rework_loops"]
+severity = "med"
+maturity = "curated"
+provenance = "open-gsd/gsd-core (verify phase); galando/tokenomics (prompt grading); Reddit r/whaaat_ai (clarify phase)"
+reviewed = "2026-06"
+title = "Repeated rework cycles on the same file"
+recommendation = "Front-load a clarify/plan/verify step; one cheap clarifying question avoids a multi-turn implementation that gets redone."
+
+# ── Output verbosity ─────────────────────────────────────────────────────────
+
+[[pattern]]
+id = "output.verbose-prose"
+category = "output"
+polarity = "anti_pattern"
+scope = "session"
+engine = "declarative"
+rule = "verbose_prose_turns >= th.verbose_prose_turns"
+signals = ["verbose_prose_turns", "output_tokens"]
+severity = "low"
+remediation_skill = "claude-md-linter"
+maturity = "curated"
+provenance = "JuliusBrussee/caveman (65% output cut); drona23/claude-token-efficient; nadimtuhin/claude-token-optimizer"
+reviewed = "2026-06"
+title = "Verbose assistant prose (explanations, preambles)"
+recommendation = "Add terse-output rules to CLAUDE.md (no preambles/filler, code + minimal comments); reserve long explanations for when asked. The rule text is re-sent every turn, so it pays off only when output volume is high."

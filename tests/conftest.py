@@ -47,9 +47,9 @@ def turn(uuid="u1", model="claude-opus-4-8", u=None, tools=None, thinking=0,
     )
 
 
-def session(sid="s1", turns=None, subs=None, project="/tmp/proj") -> Session:
+def session(sid="s1", turns=None, subs=None, project="/tmp/proj", cc_version=None) -> Session:
     return Session(session_id=sid, project_path=project, file_path="/tmp/proj/x.jsonl",
-                   turns=turns or [], subagents=subs or [])
+                   turns=turns or [], subagents=subs or [], cc_version=cc_version)
 
 
 def subagent(agent_id="a1", agent_type=None, desc=None, turns=None, model=None,

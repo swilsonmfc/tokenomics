@@ -25,7 +25,13 @@ from .model import Corpus, ToolCall
 # because features can't import the detectors package without a cycle).
 SEARCH_TOOLS = {"Grep", "Glob"}
 SEARCH_BASH = ("grep", "rg ", "ripgrep", "find ", "ag ", "ack ")
+_EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
 _PREMIUM_TIER = 3
+
+# Claude Code releases with the known prompt-cache regression (sourced from
+# IyadhKhalfallah/clauditor): these fail to reuse the cache and re-bill 10-20x.
+_CC_CACHE_BUG_LOW = (2, 1, 69)
+_CC_CACHE_BUG_HIGH = (2, 1, 89)
 
 
 def is_search_call(call: ToolCall) -> bool:
@@ -35,6 +41,29 @@ def is_search_call(call: ToolCall) -> bool:
         cmd = str(call.input.get("command", "")).lower()
         return any(tok in cmd for tok in SEARCH_BASH)
     return False
+
+
+def cc_version_in_cache_bug_range(version: str | None) -> bool:
+    """True if a Claude Code version string falls in the known cache-bug range."""
+    if not version:
+        return False
+    try:
+        parts = tuple(int(p) for p in version.strip().split(".")[:3])
+    except ValueError:
+        return False
+    return _CC_CACHE_BUG_LOW <= parts <= _CC_CACHE_BUG_HIGH
+
+
+def _tool_signature(call: ToolCall) -> str:
+    """Stable identity for a tool call (to spot identical re-invocations)."""
+    inp = call.input
+    key = inp.get("command") or inp.get("file_path") or inp.get("pattern")
+    if key is None:
+        try:
+            key = repr(sorted(inp.items()))
+        except TypeError:
+            key = repr(inp)
+    return f"{call.name}:{str(key)[:200]}"
 
 
 @dataclass(frozen=True)
@@ -67,6 +96,15 @@ class TrajectoryFeatures:
     premium_subagent_runs: int = 0
     agent_count: int = 0
     cheap_pinned_agents: int = 0
+    # External-corpus patterns (docs/taxonomy mining, 2026-06)
+    verbose_prose_turns: int = 0     # no-tool turns emitting lots of output prose
+    bloated_tool_results: int = 0    # tool results over the bloat-char threshold
+    repeated_tool_calls: int = 0     # identical non-read/non-search calls re-issued
+    rework_loops: int = 0            # edit -> run -> re-edit cycles on one file
+    input_growth_factor: float = 1.0  # peak context size / first-turn baseline
+    mcp_server_count: int = 0        # total configured MCP servers
+    claudemd_lines: int = 0          # line count of the largest CLAUDE.md
+    cc_cache_bug: bool = False       # any session on a known cache-bug CC version
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -98,15 +136,27 @@ def _compute(sessions, static, cfg: Config) -> TrajectoryFeatures:
     reads: Counter[str] = Counter()
     edited: set[str] = set()
     max_fanout = web_requests = 0
+    verbose_prose = bloated_results = rework_loops = 0
+    tool_sigs: Counter[str] = Counter()
+    edit_ran: dict[str, bool] = {}  # file -> a command ran since its last edit
+    first_ctx = peak_ctx = 0
 
-    def visit(turn, default_model):
+    def visit(turn, default_model, is_main=True):
         nonlocal total_turns, total_calls, search_calls, trivial_premium
         nonlocal thinking_trivial, cache_read, cache_create, bust_turns, web_requests
-        nonlocal output_tokens, weight
+        nonlocal output_tokens, weight, verbose_prose, bloated_results, rework_loops
+        nonlocal first_ctx, peak_ctx
         u = turn.usage
         if u is None or u.total_tokens == 0:
             return
         total_turns += 1
+        if not turn.tool_calls and u.output >= th.verbose_output:
+            verbose_prose += 1
+        if is_main:
+            ctx = u.context_size
+            if first_ctx == 0 and ctx > 0:
+                first_ctx = ctx
+            peak_ctx = max(peak_ctx, ctx)
         model = pricing.normalize_model(turn.model or default_model) or "unknown"
         tokens_by_model[model] += u.total_tokens
         output_tokens += u.output
@@ -126,16 +176,34 @@ def _compute(sessions, static, cfg: Config) -> TrajectoryFeatures:
         web_requests += u.web_search_requests + u.web_fetch_requests
         for call in turn.tool_calls:
             total_calls += 1
-            if is_search_call(call):
+            searchy = is_search_call(call)
+            if searchy:
                 search_calls += 1
                 pat = call.input.get("pattern") or call.input.get("command") or ""
                 if pat:
                     search_patterns[str(pat).strip()[:120]] += 1
+            if (call.result_chars or 0) >= th.tool_result_bloat_chars:
+                bloated_results += 1
             fp = call.input.get("file_path")
             if call.name == "Read" and fp:
                 reads[fp] += 1
-            elif call.name in ("Edit", "Write", "MultiEdit") and fp:
+            elif call.name in _EDIT_TOOLS and fp:
                 edited.add(fp)
+            if not is_main:
+                continue
+            # Repeated identical calls — excluding reads (reread_files), searches
+            # (repeated_search_max), and edits (a file is legitimately edited more
+            # than once); those are keyed too coarsely to mean "identical call".
+            if call.name != "Read" and call.name not in _EDIT_TOOLS and not searchy:
+                tool_sigs[_tool_signature(call)] += 1
+            # Rework: re-editing a file after a command ran since the last edit.
+            if call.name in _EDIT_TOOLS and fp:
+                if edit_ran.get(fp):
+                    rework_loops += 1
+                edit_ran[fp] = False
+            elif call.name == "Bash" and not searchy:
+                for f in edit_ran:
+                    edit_ran[f] = True
 
     subagent_count = premium_subagent_runs = 0
     for session in sessions:
@@ -149,7 +217,7 @@ def _compute(sessions, static, cfg: Config) -> TrajectoryFeatures:
             if sub_model and MODEL_TIER.get(sub_model, 0) >= _PREMIUM_TIER:
                 premium_subagent_runs += 1
             for turn in sub.turns:
-                visit(turn, sub.model)
+                visit(turn, sub.model, is_main=False)
 
     total_tokens = sum(tokens_by_model.values())
     top_model, top_tokens = (tokens_by_model.most_common(1)[0]
@@ -182,6 +250,10 @@ def _compute(sessions, static, cfg: Config) -> TrajectoryFeatures:
 
     cheap_pinned = sum(1 for a in static.agents if _is_cheap_pin(a))
     claudemd_tokens = max((d.get("est_tokens", 0) for d in static.claude_md), default=0)
+    claudemd_lines = max((d.get("lines", 0) for d in static.claude_md), default=0)
+    repeated_calls = sum(c - 1 for c in tool_sigs.values() if c > 1)
+    growth = round(peak_ctx / first_ctx, 2) if first_ctx else 1.0
+    cc_cache_bug = any(cc_version_in_cache_bug_range(s.cc_version) for s in sessions)
 
     return TrajectoryFeatures(
         total_turns=total_turns,
@@ -210,4 +282,12 @@ def _compute(sessions, static, cfg: Config) -> TrajectoryFeatures:
         premium_subagent_runs=premium_subagent_runs,
         agent_count=len(static.agents),
         cheap_pinned_agents=cheap_pinned,
+        verbose_prose_turns=verbose_prose,
+        bloated_tool_results=bloated_results,
+        repeated_tool_calls=repeated_calls,
+        rework_loops=rework_loops,
+        input_growth_factor=growth,
+        mcp_server_count=len(static.mcp_servers),
+        claudemd_lines=claudemd_lines,
+        cc_cache_bug=cc_cache_bug,
     )
