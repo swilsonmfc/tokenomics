@@ -27,6 +27,7 @@ _ANALYSIS_NAMES = {
     5: "Cache-busting behavior",
     6: "Review-stage agents",
     7: "Second-tier savings",
+    8: "Output verbosity",
 }
 
 

@@ -135,6 +135,15 @@ class Thresholds:
     # Taxonomy declarative patterns (matched against the trajectory feature vector)
     thinking_trivial: int = 3        # premium turns that think hard for a trivial answer
     premium_subagent_runs: int = 2   # subagent runs left on a top-tier model
+    # External-corpus patterns (mined from the docs/repos list, 2026-06)
+    long_session_turns: int = 120     # very long single session (history re-sent each turn)
+    verbose_output: int = 600         # output tokens on a no-tool turn ⇒ verbose prose
+    verbose_prose_turns: int = 5      # this many verbose-prose turns in a session
+    bloated_tool_results: int = 3     # this many over-the-bloat-threshold tool results
+    repeated_tool_calls: int = 3      # identical non-read/non-search calls re-issued
+    rework_loops: int = 2             # edit→run→re-edit cycles on one file
+    input_growth_factor: float = 5.0  # peak context ÷ first-turn baseline (history snowball)
+    mcp_server_count: int = 10        # configured MCP servers before flagging surface bloat
     # Empirical miner (Phase B): contrast expensive vs cheap sessions
     mine_min_sessions: int = 8       # need this many sessions before mining at all
     mine_min_cohort: int = 3         # min sessions in each (expensive/cheap) cohort

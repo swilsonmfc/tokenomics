@@ -106,8 +106,10 @@ today's data does not still support.
 ## Adding a pattern
 
 1. **Declarative:** add a `[[pattern]]` with a `rule` to `catalog/core.toml` (or a new
-   `*.toml`). Reference feature names + `th.<threshold>`. Add the threshold to
-   `config.Thresholds` if new. Done — the matcher picks it up.
+   `*.toml`, e.g. `catalog/external.toml` holds the patterns mined from external
+   docs/repos — see `mined-external-report.md` for their provenance). Reference
+   feature names + `th.<threshold>`. Add the threshold to `config.Thresholds` if new.
+   Done — the matcher picks it up.
 2. **Detector-backed:** add the detector as usual (`docs/detectors.md`), set
    `pattern_id=` on its Finding, and add a matching `engine = "detector"` record.
 3. Add a trigger + negative-control test in `tests/test_taxonomy.py`.
