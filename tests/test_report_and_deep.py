@@ -49,6 +49,42 @@ def test_render_includes_finding():
     assert "route trivial turns" in md
 
 
+def test_render_describes_every_analysis_when_empty():
+    # No findings at all: each analysis still documents what it checks for, so the
+    # report shows the library's full diagnostic surface on an empty scan.
+    md = render_markdown(_minimal_agg())
+    assert md.count("_Checks:") == 8
+    assert "_No findings this scan._" in md
+
+
+def test_render_includes_catalog_coverage_table():
+    agg = _minimal_agg()
+    agg["taxonomy"] = {
+        "catalog_size": 2,
+        "by_maturity": {"curated": 2},
+        "matched_patterns": ["search.grep-heavy"],
+        "patterns": [
+            {"id": "search.grep-heavy", "category": "search", "analysis_no": 1,
+             "engine": "detector", "scope": "trajectory", "polarity": "anti_pattern",
+             "maturity": "curated", "title": "x", "matched": True},
+            {"id": "routing.thinking-on-trivial", "category": "routing", "analysis_no": 2,
+             "engine": "declarative", "scope": "trajectory", "polarity": "anti_pattern",
+             "maturity": "curated", "title": "y", "matched": False},
+        ],
+    }
+    md = render_markdown(agg)
+    assert "Diagnostic coverage" in md
+    assert "1/2 patterns matched" in md
+    assert "`search.grep-heavy`" in md and "✅ matched" in md
+    assert "`routing.thinking-on-trivial`" in md and "— not matched" in md
+
+
+def test_render_without_taxonomy_still_ok():
+    # The coverage table is guarded: an agg with no taxonomy block renders fine.
+    md = render_markdown(_minimal_agg())
+    assert "Diagnostic coverage" not in md
+
+
 class _StubClient:
     def judge(self, prompt):
         return "stubbed note"

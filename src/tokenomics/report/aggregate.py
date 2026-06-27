@@ -97,6 +97,22 @@ def build_aggregates(
             "catalog_size": len(catalog.patterns),
             "by_maturity": catalog.by_maturity(),
             "matched_patterns": matched,
+            # Full per-pattern coverage so the report can show the library's whole
+            # diagnostic surface (every check), not just the ones this corpus tripped.
+            "patterns": [
+                {
+                    "id": p.id,
+                    "category": p.category,
+                    "analysis_no": p.analysis_no,
+                    "engine": p.engine,
+                    "scope": p.scope,
+                    "polarity": p.polarity,
+                    "maturity": p.maturity,
+                    "title": p.title,
+                    "matched": p.id in set(matched),
+                }
+                for p in catalog.patterns
+            ],
         },
         "pricing_basis": "claude-api skill (cached 2026-06); cache read 0.1x, write 1.25x/2x",
         "unpriced_models": metrics.unpriced_models,

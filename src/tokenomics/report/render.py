@@ -30,6 +30,20 @@ _ANALYSIS_NAMES = {
     8: "Output verbosity",
 }
 
+# What each analysis checks for — shown even when an analysis has no findings, so
+# an empty scan still documents the library's full diagnostic surface.
+_ANALYSIS_CHECKS = {
+    1: "search-heavy trajectories, repeated greps, an indexer installed but unused",
+    2: "premium model on trivial work, premium-everywhere token share, "
+       "extended thinking on trivial turns, subagents left on a premium model",
+    3: "large peak/average context window, MCP servers loaded but never called",
+    4: "CLAUDE.md size (re-sent every turn) and duplicate headings",
+    5: "low prompt-cache efficiency and prefix-invalidating bust turns",
+    6: "redundant or over-modeled review-stage subagents",
+    7: "file re-reads, oversized tool results, wide subagent fan-out, server-tool waste",
+    8: "verbose prose on no-tool turns",
+}
+
 
 def _sparkline(values: list[int]) -> str:
     if not values:
@@ -137,9 +151,13 @@ def render_markdown(agg: dict) -> str:
     for no in sorted(_ANALYSIS_NAMES):
         L.append(f"### {no}. {_ANALYSIS_NAMES[no]}")
         L.append("")
+        check = _ANALYSIS_CHECKS.get(no)
+        if check:
+            L.append(f"_Checks: {check}._")
+            L.append("")
         items = by_analysis.get(no, [])
         if not items:
-            L.append("_No findings._")
+            L.append("_No findings this scan._")
             L.append("")
             continue
         for f in items:
@@ -210,6 +228,22 @@ def render_markdown(agg: dict) -> str:
         else:
             L.append("- Matched this scan: none")
         L.append("")
+
+        # Full diagnostic surface: every catalog pattern, matched or not. Shows the
+        # library's breadth regardless of what this particular corpus tripped.
+        patterns = tax.get("patterns", [])
+        if patterns:
+            n_match = sum(1 for p in patterns if p.get("matched"))
+            L.append(f"**Diagnostic coverage** — {n_match}/{len(patterns)} patterns "
+                     f"matched this scan:")
+            L.append("")
+            L.append("| Pattern | Category | Engine | Maturity | This scan |")
+            L.append("|---|---|---|---|---|")
+            for p in sorted(patterns, key=lambda x: (x.get("analysis_no", 0), x["id"])):
+                hit = "✅ matched" if p.get("matched") else "— not matched"
+                L.append(f"| `{p['id']}` | {p.get('category', '')} | "
+                         f"{p.get('engine', '')} | {p.get('maturity', '')} | {hit} |")
+            L.append("")
 
     # 7. Methodology
     L.append("## Methodology & caveats")
