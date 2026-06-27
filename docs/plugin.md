@@ -39,10 +39,10 @@ not recompute metrics. If aggregates are missing/stale they tell the user to run
 
 | Skill | Consumes | Recommends |
 |---|---|---|
-| `claude-md-linter` | D4 findings + live CLAUDE.md | Streamlined rewrite, per-turn savings, cache-bust warning. |
-| `code-indexing-advisor` | D1 findings + plugins | grep vs LSP vs AST vs RepoMap vs CocoIndex; enablement steps. |
-| `dynamic-router-advisor` | D2 findings + `by_model` + agent model pins | Task-class → model policy, thinking tiers, cheap-subagent pins. |
-| `context-window-evaluator` | D3 findings + context series + static MCP/CLAUDE.md | Offloads, disable unused MCP, compaction cadence. |
+| `tokenomics-advisor-claude` | D4 findings + live CLAUDE.md | Streamlined rewrite, per-turn savings, cache-bust warning. |
+| `tokenomics-advisor-code-indexing` | D1 findings + plugins | grep vs LSP vs AST vs RepoMap vs CocoIndex; enablement steps. |
+| `tokenomics-advisor-dynamic-router` | D2 findings + `by_model` + agent model pins | Task-class → model policy, thinking tiers, cheap-subagent pins. |
+| `tokenomics-advisor-context-window` | D3 findings + context series + static MCP/CLAUDE.md | Offloads, disable unused MCP, compaction cadence. |
 
 ## Output layout (`.tokenomics/`, written into the analyzed project)
 

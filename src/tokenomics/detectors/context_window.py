@@ -58,7 +58,7 @@ class ContextWindowDetector:
                 recommendation=(
                     "Offload heavy work to subagents (fresh context), trim CLAUDE.md, "
                     "disable MCP servers you don't call, and compact long sessions. "
-                    "See the context-window-evaluator skill."
+                    "See the tokenomics-advisor-context-window skill."
                 ),
                 pattern_id="context.large-window",
                 deep_enrichable=True,

@@ -26,10 +26,12 @@ def _output_dir(project_path: str) -> Path:
     return d
 
 
-def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
+def build_aggregates(
+    project_path: str, scan_all: bool = False, log_dir: str | None = None
+) -> dict:
     cfg = load_config(project_path)
     static = collect_static(project_path)
-    corpus = assemble_corpus(project_path, static, scan_all=scan_all)
+    corpus = assemble_corpus(project_path, static, scan_all=scan_all, log_dir=log_dir)
     metrics = compute_metrics(corpus)
     findings = run_all(corpus, cfg)
     recs = reconcile_subagents(corpus)
@@ -101,9 +103,12 @@ def build_aggregates(project_path: str, scan_all: bool = False) -> dict:
     }
 
 
-def run_scan(project_path: str, deep: bool = False, scan_all: bool = False) -> dict[str, str]:
+def run_scan(
+    project_path: str, deep: bool = False, scan_all: bool = False,
+    log_dir: str | None = None,
+) -> dict[str, str]:
     out_dir = _output_dir(project_path)
-    aggregates = build_aggregates(project_path, scan_all=scan_all)
+    aggregates = build_aggregates(project_path, scan_all=scan_all, log_dir=log_dir)
 
     if deep:
         try:

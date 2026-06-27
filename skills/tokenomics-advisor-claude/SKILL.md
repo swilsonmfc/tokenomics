@@ -1,5 +1,5 @@
 ---
-name: claude-md-linter
+name: tokenomics-advisor-claude
 description: Lints and streamlines CLAUDE.md for token efficiency and signal density. Reads tokenomics analysis (.tokenomics/aggregates.json, the D4 CLAUDE.md findings) plus the live CLAUDE.md file(s), reports size/duplication/contradictions, and proposes a streamlined rewrite with quantified per-turn savings. Trigger on 'lint my CLAUDE.md', 'is my CLAUDE.md bloated', 'streamline CLAUDE.md', 'reduce CLAUDE.md size', 'why is my CLAUDE.md so big'.
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: code-indexing-advisor
+name: tokenomics-advisor-code-indexing
 description: Recommends code-context search strategy (grep vs LSP vs AST vs RepoMap vs CocoIndex) to cut search token cost. Reads tokenomics D1 search-efficiency findings and installed plugins, then advises whether to enable an indexer and how. Trigger on 'should I add an indexing tool', 'improve code search', 'grep is slow/expensive', 'reduce search token cost', 'set up LSP/AST/RepoMap', 'why is my context search so expensive'.
 ---
 

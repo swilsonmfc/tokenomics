@@ -19,7 +19,7 @@ Module responsibilities (`src/tokenomics/`):
 
 | Module | Responsibility |
 |---|---|
-| `logpath.py` | Map a project path to its `~/.claude/projects/<namespaced>/` dir; discover `<sessionId>.jsonl` + `<sessionId>/subagents/agent-*.jsonl` (+ `.meta.json`). |
+| `logpath.py` | Map a project path to its `~/.claude/projects/<namespaced>/` dir; discover `<sessionId>.jsonl` + `<sessionId>/subagents/agent-*.jsonl` (+ `.meta.json`). `scan --log-dir <dir>` bypasses the path→namespace mapping to read sessions from an arbitrary dir (e.g. another user's exported logs); the report still writes to `--project` and static analysis still reads `--project`. Mutually exclusive with `--all`. |
 | `logparse.py` | Stream JSONL → plain dicts, skipping blank/malformed lines. No interpretation. |
 | `model.py` | Frozen/lightweight dataclasses: `TokenUsage`, `ToolCall`, `Turn`, `SubagentRun`, `Session`, `StaticEnv`, `Corpus`. |
 | `assemble.py` | Fold raw records into the model; build the conversation DAG; link `tool_use → tool_result → subagent` transcripts. |

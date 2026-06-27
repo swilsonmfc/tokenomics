@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from conftest import corpus, rec_assistant, rec_user_tool_result, write_jsonl
 
-from tokenomics.assemble import assemble_session
+from tokenomics.assemble import assemble_corpus, assemble_session
 from tokenomics.logpath import SessionFiles
 
 
@@ -133,3 +133,30 @@ def test_reconcile_flags_unlinked_subagent(tmp_path):
     assert len(recs) == 1
     assert recs[0].linked is False
     assert recs[0].rollup_tokens == 0
+
+
+def test_log_dir_reads_explicit_dir_and_labels_with_project(tmp_path):
+    """--log-dir reads sessions from an arbitrary dir; sessions are labeled with
+    project_path (the report destination), not the log dir."""
+    logs = tmp_path / "someone-elses-logs"
+    write_jsonl(logs / "s1.jsonl",
+                [rec_assistant("u1", usage_dict={"input_tokens": 11, "output_tokens": 3})])
+
+    c = assemble_corpus("/dest/project", log_dir=logs)
+
+    assert c.project_path == "/dest/project"
+    assert len(c.sessions) == 1
+    assert c.sessions[0].project_path == "/dest/project"
+    assert c.file_count == 1
+
+
+def test_log_dir_ignored_when_scan_all(tmp_path):
+    """scan_all derives its own log dirs; an explicit log_dir is ignored, not merged."""
+    logs = tmp_path / "logs"
+    write_jsonl(logs / "s1.jsonl", [rec_assistant("u1")])
+
+    c = assemble_corpus("/dest/project", scan_all=True, log_dir=logs)
+
+    # scan_all walks ~/.claude/projects, so our temp dir's session must NOT appear.
+    assert c.project_path == "<all projects>"
+    assert all(s.file_path != str(logs / "s1.jsonl") for s in c.sessions)

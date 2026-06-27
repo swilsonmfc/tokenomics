@@ -23,8 +23,19 @@ def _default_project() -> str:
 def cmd_scan(args: argparse.Namespace) -> int:
     from .report.aggregate import run_scan
 
-    paths = run_scan(args.project, deep=args.deep, scan_all=args.all)
-    scope = "all projects" if args.all else args.project
+    if args.log_dir and args.all:
+        print("tokenomics scan: --log-dir and --all are mutually exclusive "
+              "(--all derives log dirs from ~/.claude/projects)", file=sys.stderr)
+        return 1
+    if args.log_dir and not Path(args.log_dir).is_dir():
+        print(f"tokenomics scan: --log-dir not a directory: {args.log_dir}", file=sys.stderr)
+        return 1
+
+    paths = run_scan(args.project, deep=args.deep, scan_all=args.all, log_dir=args.log_dir)
+    if args.log_dir:
+        scope = f"{args.log_dir} → report in {args.project}"
+    else:
+        scope = "all projects" if args.all else args.project
     print(f"tokenomics scan complete ({scope}) → {paths['report']}")
     return 0
 
@@ -164,6 +175,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="project to scan (default: current directory)")
     sp.add_argument("--all", action="store_true",
                     help="scan ALL projects under ~/.claude/projects, not just this one")
+    sp.add_argument("--log-dir", default=None,
+                    help="read sessions from this dir instead of deriving from --project "
+                         "(for another user's exported logs; report still writes to --project)")
     sp.add_argument("--deep", action="store_true", help="LLM enrichment pass (semantic findings)")
     sp.set_defaults(func=cmd_scan)
 

@@ -1,5 +1,5 @@
 ---
-name: context-window-evaluator
+name: tokenomics-advisor-context-window
 description: Evaluates context-window size and what's loaded into it, recommending offloads to cut standing per-turn token cost. Reads tokenomics D3 context findings, the per-session peak/avg series, and static MCP/CLAUDE.md/agent config. Trigger on 'is my context too big', 'evaluate context window', "what's loaded into context", 'reduce context size', 'why is each turn so expensive', 'should I disable MCP servers'.
 ---
 
@@ -20,7 +20,7 @@ cost (paid on every request) can be reduced.
 2. Attribute the standing context to its contributors:
    - **MCP tool schemas** — count distinct servers loaded; call out any loaded-but-never-
      called (pure overhead) and recommend disabling them.
-   - **CLAUDE.md** — its token size (re-sent every turn); hand off to the claude-md-linter
+   - **CLAUDE.md** — its token size (re-sent every turn); hand off to the tokenomics-advisor-claude
      skill if large.
    - **Large agent prompts / monotonic growth without compaction.**
 3. Recommend offloads: move heavy work to subagents (fresh context), disable unused MCP

@@ -1,5 +1,5 @@
 ---
-name: dynamic-router-advisor
+name: tokenomics-advisor-dynamic-router
 description: Proposes a model-routing and thinking-effort policy to cut spend, from tokenomics routing analysis. Reads D2 routing findings and the per-model token/cost breakdown, then recommends which task classes belong on which model and how to pin cheap subagents. Trigger on 'am I using the right model', 'set up routing', 'reduce model cost', 'tune thinking budget', 'why is everything on opus', 'should I use a cheaper model'.
 ---
 

@@ -37,7 +37,7 @@ rule            "thinking_trivial_turns >= th.thinking_trivial"   # declarative 
 detector_id     routing                                           # detector only
 signals         ["thinking_trivial_turns"]   # feature names surfaced as evidence
 severity        info | low | med | high      # declarative only
-remediation_skill  dynamic-router-advisor
+remediation_skill  tokenomics-advisor-dynamic-router
 maturity        curated | empirical | candidate
 provenance / reviewed                          # where it came from, when last checked
 ```
