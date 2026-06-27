@@ -67,7 +67,7 @@ class ClaudeMdBloatDetector:
                     recommendation=(
                         "Streamline CLAUDE.md: dedupe sections, drop low-density prose, "
                         "keep imperative rules. It is re-sent (and cache-written) every "
-                        "turn, so trimming compounds. See the claude-md-linter skill. "
+                        "turn, so trimming compounds. See the tokenomics-advisor-claude skill. "
                         "Editing it mid-session also busts the cache (D5)."
                     ),
                     pattern_id="claudemd.bloat",

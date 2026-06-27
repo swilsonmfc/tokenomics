@@ -22,8 +22,8 @@ uv run --project "${CLAUDE_PLUGIN_ROOT}" python -m tokenomics.cli scan --project
 Then:
 1. Read `.tokenomics/report.md` and summarize the top 3 savings opportunities (by severity
    and estimated savings) for the user.
-2. Point them at the relevant advisory skill for each finding (claude-md-linter,
-   code-indexing-advisor, dynamic-router-advisor, context-window-evaluator).
+2. Point them at the relevant advisory skill for each finding (tokenomics-advisor-claude,
+   tokenomics-advisor-code-indexing, tokenomics-advisor-dynamic-router, tokenomics-advisor-context-window).
 
 Notes:
 - The analyzer is deterministic and free; `--deep` adds an optional cheap-model semantic pass.

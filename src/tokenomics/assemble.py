@@ -301,30 +301,38 @@ def assemble_session(sf: SessionFiles, project_path: str) -> Session:
 
 
 def assemble_corpus(
-    project_path: str, static: StaticEnv | None = None, scan_all: bool = False
+    project_path: str,
+    static: StaticEnv | None = None,
+    scan_all: bool = False,
+    log_dir: str | Path | None = None,
 ) -> Corpus:
     """Assemble the corpus.
 
     Default scope is the current project (the log dir matching ``project_path``).
     ``scan_all=True`` aggregates every project under ~/.claude/projects/, labeling
     each session with its own (de-namespaced) project path.
+    ``log_dir`` reads sessions from an explicit directory instead of deriving the
+    log path from ``project_path`` — for analyzing another user's exported logs.
+    Sessions are still labeled with ``project_path`` (the report's destination).
+    ``log_dir`` is ignored when ``scan_all`` is set.
     """
     sessions: list[Session] = []
     file_count = 0
     byte_size = 0
 
     if scan_all:
-        for log_dir in all_project_log_dirs():
-            sfs = discover_sessions_in_dir(log_dir)
+        for log_dir_path in all_project_log_dirs():
+            sfs = discover_sessions_in_dir(log_dir_path)
             if not sfs:
                 continue
-            label = denamespace(log_dir.name)
+            label = denamespace(log_dir_path.name)
             sessions.extend(assemble_session(sf, label) for sf in sfs)
             file_count += sum(1 + len(sf.subagent_logs) for sf in sfs)
             byte_size += corpus_byte_size(sfs)
         corpus_label = "<all projects>"
     else:
-        sfs = discover_sessions(project_path)
+        sfs = (discover_sessions_in_dir(Path(log_dir)) if log_dir is not None
+               else discover_sessions(project_path))
         sessions = [assemble_session(sf, project_path) for sf in sfs]
         file_count = sum(1 + len(sf.subagent_logs) for sf in sfs)
         byte_size = corpus_byte_size(sfs)

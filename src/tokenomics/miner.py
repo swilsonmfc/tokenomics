@@ -40,22 +40,23 @@ class SignalSpec:
 # inputs (weight/output/total_tokens) to avoid circularity, and the static
 # signals (unused_mcp, agent pins) which don't vary across a project's sessions.
 MINEABLE: list[SignalSpec] = [
-    SignalSpec("search_ratio", "search-heavy", "search", True, "code-indexing-advisor"),
+    SignalSpec("search_ratio", "search-heavy", "search", True, "tokenomics-advisor-code-indexing"),
     SignalSpec("premium_token_share", "premium-model share", "routing", True,
-               "dynamic-router-advisor"),
+               "tokenomics-advisor-dynamic-router"),
     SignalSpec("trivial_premium_ratio", "trivial-on-premium rate", "routing", True,
-               "dynamic-router-advisor"),
+               "tokenomics-advisor-dynamic-router"),
     SignalSpec("thinking_trivial_turns", "thinking-on-trivial turns", "routing", True,
-               "dynamic-router-advisor", is_int=True),
-    SignalSpec("ctx_peak", "context peak", "context", True, "context-window-evaluator",
+               "tokenomics-advisor-dynamic-router", is_int=True),
+    SignalSpec("ctx_peak", "context peak", "context", True, "tokenomics-advisor-context-window",
                is_int=True),
-    SignalSpec("ctx_avg", "context average", "context", True, "context-window-evaluator"),
+    SignalSpec("ctx_avg", "context average", "context", True,
+               "tokenomics-advisor-context-window"),
     SignalSpec("reread_files", "file re-reads", "secondtier", True, is_int=True),
     SignalSpec("max_fanout", "subagent fan-out", "secondtier", True, is_int=True),
     SignalSpec("web_requests", "web search/fetch", "secondtier", True, is_int=True),
     SignalSpec("bust_turns", "cache-bust turns", "cache", True, is_int=True),
     SignalSpec("premium_subagent_runs", "premium subagents", "routing", True,
-               "dynamic-router-advisor", is_int=True),
+               "tokenomics-advisor-dynamic-router", is_int=True),
     SignalSpec("cache_efficiency", "cache efficiency", "cache", False),
 ]
 

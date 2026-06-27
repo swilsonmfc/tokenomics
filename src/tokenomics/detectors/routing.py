@@ -80,7 +80,7 @@ class RoutingDetector:
                     "Route trivial/mechanical turns (short output, no tools, no "
                     "thinking) to a cheaper model, and pin cheap subagents via "
                     "agent `model:` frontmatter. Reserve the premium model for "
-                    "hard reasoning. See the dynamic-router-advisor skill."
+                    "hard reasoning. See the tokenomics-advisor-dynamic-router skill."
                 ),
                 pattern_id="routing.premium-everywhere",
                 deep_enrichable=True,

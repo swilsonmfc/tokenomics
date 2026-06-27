@@ -37,8 +37,8 @@ Beyond the seven curated analyses, `tokenomics mine --all` harvests **candidate*
 from your own corpus (expensive vs cheap sessions); `tokenomics promote` graduates the ones
 that are stable and well-separated into **empirical** patterns that fire by default.
 
-Four advisory **skills** turn findings into fixes: `claude-md-linter`,
-`code-indexing-advisor`, `dynamic-router-advisor`, `context-window-evaluator`.
+Four advisory **skills** turn findings into fixes: `tokenomics-advisor-claude`,
+`tokenomics-advisor-code-indexing`, `tokenomics-advisor-dynamic-router`, `tokenomics-advisor-context-window`.
 
 A **capture hook** (toggle with `/tokenomics-watch`) flags context growth,
 cache-busting, and budget overruns in real time during a session.

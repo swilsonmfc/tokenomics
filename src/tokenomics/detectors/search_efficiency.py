@@ -84,7 +84,7 @@ class SearchEfficiencyDetector:
                      "leans on raw grep — prefer LSP navigation/symbol lookup. ")
                     if indexer else
                     "No code-indexing tool detected. Adding LSP/AST/RepoMap navigation "
-                    "cuts repeated full-text scans. See the code-indexing-advisor skill."
+                    "cuts repeated full-text scans. See the tokenomics-advisor-code-indexing skill."
                 ),
                 pattern_id="search.grep-heavy",
                 deep_enrichable=True,
